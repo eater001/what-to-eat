@@ -13,7 +13,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 // ============================================
 // 全局状态
@@ -35,9 +34,7 @@ let confirmCallback = null;
 let isGuestMode = false;
 let guestList = [];
 
-// ============================================
 // DOM 缓存
-// ============================================
 const authScreen = document.getElementById('authScreen');
 const appContainer = document.getElementById('appContainer');
 const tabLogin = document.getElementById('tabLogin');
@@ -148,7 +145,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function compressImage(base64, maxSize = 800, quality = 0.7) {
+function compressImage(base64, maxSize = 600, quality = 0.6) {
     return new Promise((resolve) => {
         if (!base64) { resolve(null); return; }
         const img = new Image();
@@ -657,9 +654,7 @@ function parseFridgeText(text) {
         seen.add(cleaned); items.push(cleaned);
     });
     return items;
-}
-
-// ============================================
+}// ============================================
 // Tab 切换
 // ============================================
 document.querySelectorAll('.smart-tab').forEach(tab => {
@@ -738,22 +733,14 @@ function cancelEdit() {
 }
 
 // ============================================
-// 图片上传到 Firebase Storage
+// 图片压缩（不传Storage，直接base64存Firestore）
 // ============================================
 async function uploadImage(base64) {
-    if (!base64 || !currentUser) return null;
+    if (!base64) return null;
     try {
-        const compressed = await compressImage(base64, 800, 0.7);
-        if (!compressed) return null;
-        const response = await fetch(compressed);
-        const blob = await response.blob();
-        const fileName = `recipe-images/${currentUser.uid}/${Date.now()}.jpg`;
-        const ref = storage.ref(fileName);
-        await ref.put(blob);
-        const url = await ref.getDownloadURL();
-        return url;
+        return await compressImage(base64, 600, 0.6);
     } catch (err) {
-        console.error('图片上传失败：', err);
+        console.error('图片压缩失败：', err);
         return null;
     }
 }
@@ -774,17 +761,7 @@ async function saveOrUpdateRecipe() {
     try {
         let imageUrl = null;
         if (currentImageBase64) {
-            if (currentImageBase64.startsWith('http')) {
-                imageUrl = currentImageBase64;
-            } else {
-                imageUrl = await uploadImage(currentImageBase64);
-                if (!imageUrl) {
-                    showToast('图片上传失败，请重试', 2000);
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = editingId ? '📌 更新这道菜' : '💾 保存这道菜';
-                    return;
-                }
-            }
+            imageUrl = await uploadImage(currentImageBase64);
         }
 
         if (editingId) {
