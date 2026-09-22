@@ -294,15 +294,36 @@ authSubmitBtn.addEventListener('click', async () => {
     }
 });
 
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        currentUser = user;
-        showApp();
-    } else {
-        currentUser = null;
-        showAuth();
+// 先检查是否有分享参数，有的话直接进访客模式，不需要登录
+function checkShareMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let shareDataStr = urlParams.get('share');
+    if (!shareDataStr) {
+        const hash = window.location.hash || '';
+        const hashMatch = hash.match(/[#&]share=([^&]*)/);
+        if (hashMatch) shareDataStr = decodeURIComponent(hashMatch[1]);
     }
-});
+    return shareDataStr;
+}
+
+const shareData = checkShareMode();
+if (shareData) {
+    // 有分享参数：隐藏登录页，直接进入访客模式
+    authScreen.classList.add('hidden');
+    appContainer.classList.remove('hidden');
+    isGuestMode = true;
+    enterGuestMode(shareData);
+} else {
+    // 没有分享参数：正常走登录流程
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentUser = user;
+            showApp();
+        } else {
+            currentUser = null;
+            showAuth();
+        }
+    });
 
 function showAuth() {
     authScreen.classList.remove('hidden');
