@@ -1,11 +1,19 @@
 // ============================================
-// Supabase 配置
+// Firebase 配置
 // ============================================
-const SUPABASE_URL = 'https://rzkclculdojabmnlf.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_SpsGkqA4DX8gEOwVqd2n6Q_YNpgutfg';
-const BUCKET_NAME = 'eat-what';
+const firebaseConfig = {
+    apiKey: "AIzaSyCuY0GEdYDVMowwIGH5QxFC3IVoB_B7zFc",
+    authDomain: "today-eat-what-44b8e.firebaseapp.com",
+    projectId: "today-eat-what-44b8e",
+    storageBucket: "today-eat-what-44b8e.firebasestorage.app",
+    messagingSenderId: "898482788446",
+    appId: "1:898482788446:web:ac5b3293f0552b21befccf"
+};
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
 // ============================================
 // 全局状态
@@ -97,7 +105,6 @@ const fridgeAddBtn = document.getElementById('fridgeAddBtn');
 const fridgeList = document.getElementById('fridgeList');
 const fridgeCount = document.getElementById('fridgeCount');
 const fridgeClearBtn = document.getElementById('fridgeClearBtn');
-const fridgeHint = document.getElementById('fridgeHint');
 const fridgeOcrPickBtn = document.getElementById('fridgeOcrPickBtn');
 const fridgeOcrFileInput = document.getElementById('fridgeOcrFileInput');
 const fridgeOcrPreview = document.getElementById('fridgeOcrPreview');
@@ -131,9 +138,7 @@ function showToast(msg, duration = 2000) {
     toastEl.textContent = msg;
     toastEl.classList.add('show');
     clearTimeout(window.toastTimer);
-    window.toastTimer = setTimeout(() => {
-        toastEl.classList.remove('show');
-    }, duration);
+    window.toastTimer = setTimeout(() => { toastEl.classList.remove('show'); }, duration);
 }
 
 function escapeHtml(text) {
@@ -150,19 +155,12 @@ function compressImage(base64, maxSize = 800, quality = 0.7) {
         img.onload = () => {
             let { width, height } = img;
             if (width > height) {
-                if (width > maxSize) {
-                    height = Math.round(height * maxSize / width);
-                    width = maxSize;
-                }
+                if (width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize; }
             } else {
-                if (height > maxSize) {
-                    width = Math.round(width * maxSize / height);
-                    height = maxSize;
-                }
+                if (height > maxSize) { width = Math.round(width * maxSize / height); height = maxSize; }
             }
             const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
+            canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#f5ede5';
             ctx.fillRect(0, 0, width, height);
@@ -172,18 +170,6 @@ function compressImage(base64, maxSize = 800, quality = 0.7) {
         img.onerror = () => resolve(null);
         img.src = base64;
     });
-}
-
-function base64ToBlob(base64) {
-    const parts = base64.split(',');
-    const mime = parts[0].match(/:(.*?);/)[1];
-    const bstr = atob(parts[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], { type: mime });
 }
 
 // ============================================
@@ -205,9 +191,7 @@ function closeConfirm() {
 }
 
 confirmCancelBtn.addEventListener('click', closeConfirm);
-confirmOverlay.addEventListener('click', (e) => {
-    if (e.target === confirmOverlay) closeConfirm();
-});
+confirmOverlay.addEventListener('click', (e) => { if (e.target === confirmOverlay) closeConfirm(); });
 confirmOkBtn.addEventListener('click', () => {
     const cb = confirmCallback;
     closeConfirm();
@@ -244,10 +228,8 @@ function classifyRecipe(recipe) {
     const name = rawName.toLowerCase();
     const steps = (recipe.steps || '').toLowerCase();
     const text = name + ' ' + steps;
-
     if (/(汤|羹|煲)$/.test(rawName)) return 'soup';
     if (/(粥|饭|面|粉|饼|包|饺|馄饨|馒头)$/.test(rawName)) return 'staple';
-
     const priority = ['soup', 'dessert', 'cold', 'staple', 'veg', 'meat'];
     for (const cat of priority) {
         const words = KEYWORDS[cat];
@@ -285,21 +267,9 @@ authSubmitBtn.addEventListener('click', async () => {
     const rawId = authEmail.value.trim();
     const password = authPassword.value.trim();
 
-    if (!rawId) {
-        authMsg.textContent = '请输入你的 ID';
-        authMsg.className = 'auth-msg error';
-        return;
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(rawId)) {
-        authMsg.textContent = 'ID 只能用字母、数字、下划线';
-        authMsg.className = 'auth-msg error';
-        return;
-    }
-    if (!password || password.length < 6) {
-        authMsg.textContent = '密码至少 6 位';
-        authMsg.className = 'auth-msg error';
-        return;
-    }
+    if (!rawId) { authMsg.textContent = '请输入你的 ID'; authMsg.className = 'auth-msg error'; return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(rawId)) { authMsg.textContent = 'ID 只能用字母、数字、下划线'; authMsg.className = 'auth-msg error'; return; }
+    if (!password || password.length < 6) { authMsg.textContent = '密码至少 6 位'; authMsg.className = 'auth-msg error'; return; }
 
     const fakeEmail = rawId.toLowerCase() + '@todayeatwhat.local';
 
@@ -310,20 +280,15 @@ authSubmitBtn.addEventListener('click', async () => {
 
     try {
         if (authMode === 'login') {
-            const { error } = await supabaseClient.auth.signInWithPassword({ email: fakeEmail, password });
-            if (error) throw error;
+            await auth.signInWithEmailAndPassword(fakeEmail, password);
         } else {
-            const { error } = await supabaseClient.auth.signUp({ email: fakeEmail, password });
-            if (error) throw error;
-            authMsg.textContent = '注册成功，正在登录...';
-            authMsg.className = 'auth-msg';
+            await auth.createUserWithEmailAndPassword(fakeEmail, password);
         }
     } catch (err) {
         console.error('认证失败：', err);
         let msg = err.message || '操作失败，请重试';
-        if (msg.includes('Invalid login credentials')) msg = 'ID 或密码错误';
-        if (msg.includes('User already registered')) msg = '该 ID 已被使用，请换一个或直接登录';
-        if (msg.includes('Email not confirmed')) msg = '账号异常，请稍后再试';
+        if (msg.includes('user-not-found') || msg.includes('wrong-password') || msg.includes('invalid-credential')) msg = 'ID 或密码错误';
+        if (msg.includes('email-already-in-use')) msg = '该 ID 已被使用，请换一个或直接登录';
         authMsg.textContent = msg;
         authMsg.className = 'auth-msg error';
     } finally {
@@ -332,9 +297,9 @@ authSubmitBtn.addEventListener('click', async () => {
     }
 });
 
-supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (session && session.user) {
-        currentUser = session.user;
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        currentUser = user;
         showApp();
     } else {
         currentUser = null;
@@ -383,15 +348,9 @@ async function showApp() {
 
 logoutBtn.addEventListener('click', async () => {
     showConfirm({
-        icon: '👤',
-        title: '退出登录',
-        message: '确定要退出吗？',
-        okText: '退出',
-        okColor: '#c0392b',
-        onOk: async () => {
-            await supabaseClient.auth.signOut();
-            showToast('已退出登录', 1200);
-        }
+        icon: '👤', title: '退出登录', message: '确定要退出吗？',
+        okText: '退出', okColor: '#c0392b',
+        onOk: async () => { await auth.signOut(); showToast('已退出登录', 1200); }
     });
 });
 
@@ -401,19 +360,22 @@ logoutBtn.addEventListener('click', async () => {
 async function loadAllData() {
     if (!currentUser) return;
     try {
-        const { data: recipeData, error: recipeError } = await supabaseClient
-            .from('recipes').select('*').order('created_at', { ascending: false });
-        if (recipeError) throw recipeError;
-        recipes = (recipeData || []).map(r => ({
-            id: r.id, name: r.name || '', steps: r.steps || '',
-            image: r.image || null, category: r.category || 'other',
-            categoryManual: r.category_manual || false
-        }));
+        const recipeSnapshot = await db.collection('recipes')
+            .where('userId', '==', currentUser.uid)
+            .orderBy('createdAt', 'desc').get();
+        recipes = recipeSnapshot.docs.map(doc => {
+            const d = doc.data();
+            return {
+                id: doc.id, name: d.name || '', steps: d.steps || '',
+                image: d.image || null, category: d.category || 'other',
+                categoryManual: d.categoryManual || false
+            };
+        });
 
-        const { data: fridgeData, error: fridgeError } = await supabaseClient
-            .from('fridge_items').select('*').order('created_at', { ascending: false });
-        if (fridgeError) throw fridgeError;
-        fridgeItems = (fridgeData || []).map(f => ({ id: f.id, name: f.name || '' }));
+        const fridgeSnapshot = await db.collection('fridge_items')
+            .where('userId', '==', currentUser.uid)
+            .orderBy('createdAt', 'desc').get();
+        fridgeItems = fridgeSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name || '' }));
     } catch (err) {
         console.error('加载数据失败：', err);
         showToast('加载数据失败，请检查网络', 2500);
@@ -429,9 +391,7 @@ function extractFromText(text) {
     const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) return { name: '', steps: '' };
 
-    let dishName = '';
-    let dishNameIndex = -1;
-
+    let dishName = ''; let dishNameIndex = -1;
     const namePatterns = [
         /^(?:菜名|名称|今天做|做了|分享|推荐|【|#)\s*[:：]?\s*(.+)/i,
         /^(.+?)(?:的做法|做法|教程|食谱|菜谱)/
@@ -445,19 +405,14 @@ function extractFromText(text) {
             if (match && match[1]) { dishName = match[1].trim(); dishNameIndex = i; break; }
         }
         if (dishName) break;
-
         const commonDishWords = ['排骨','鸡翅','牛肉','鱼','虾','豆腐','茄子','土豆','番茄','西红柿','鸡蛋','西兰花','白菜','汤','面','饭','饼','包','糕','粥','锅','丝','片','块','丁','炒','烧','炖','煮','蒸','拌','烤','焖','烩','煎','炸','卤','酱','溜','爆'];
         if (i === 0 && line.length >= 4 && line.length <= 30) {
             const hasDishWord = commonDishWords.some(w => line.includes(w));
             if (hasDishWord || /^[\u4e00-\u9fa5a-zA-Z0-9\s]+$/.test(line)) {
-                let candidate = line
-                    .replace(/^[#【\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+\s*/u, '')
-                    .replace(/\s*[#】\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+$/u, '').trim();
+                let candidate = line.replace(/^[#【\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+\s*/u, '').replace(/\s*[#】\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+$/u, '').trim();
                 if (candidate.includes('的做法')) candidate = candidate.split('的做法')[0];
                 else if (candidate.includes('做法')) candidate = candidate.split('做法')[0];
-                if (candidate.length >= 2 && candidate.length <= 25) {
-                    dishName = candidate; dishNameIndex = 0; break;
-                }
+                if (candidate.length >= 2 && candidate.length <= 25) { dishName = candidate; dishNameIndex = 0; break; }
             }
         }
     }
@@ -470,10 +425,7 @@ function extractFromText(text) {
         dishNameIndex = 0;
     }
 
-    dishName = dishName
-        .replace(/^[#【\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+\s*/u, '')
-        .replace(/\s*[#】\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+$/u, '')
-        .replace(/[：:]\s*$/, '').trim();
+    dishName = dishName.replace(/^[#【\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+\s*/u, '').replace(/\s*[#】\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+$/u, '').replace(/[：:]\s*$/, '').trim();
 
     let stepsText = '';
     const stepKeywords = ['步骤','做法','方法','教程','制作','烹饪','操作','做法如下','步骤如下'];
@@ -485,19 +437,15 @@ function extractFromText(text) {
         for (const kw of stepKeywords) {
             if (line.includes(kw)) {
                 const cleaned = line.replace(/[步骤做法方法教程制作烹饪操作如下：:]/g, '').trim();
-                stepStartIndex = cleaned.length === 0 ? i + 1 : i;
-                break;
+                stepStartIndex = cleaned.length === 0 ? i + 1 : i; break;
             }
         }
         if (stepStartIndex !== -1) break;
     }
-
     if (stepStartIndex === -1) {
         for (let i = 0; i < lines.length; i++) {
             if (i === dishNameIndex) continue;
-            if (/^(?:\d+[\.、．]|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩|第[一二三四五六七八九十]+步)/.test(lines[i])) {
-                stepStartIndex = i; break;
-            }
+            if (/^(?:\d+[\.、．]|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩|第[一二三四五六七八九十]+步)/.test(lines[i])) { stepStartIndex = i; break; }
         }
     }
     if (stepStartIndex === -1) stepStartIndex = Math.min(1, lines.length);
@@ -511,7 +459,6 @@ function extractFromText(text) {
         if (line.length === 0) continue;
         stepLines.push(line);
     }
-
     if (stepLines.length > 0) stepsText = stepLines.join('\n');
     else stepsText = lines.filter((_, idx) => idx !== dishNameIndex).join('\n');
 
@@ -534,8 +481,10 @@ function performExtract() {
         pasteInput.value = '';
         dishNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else showToast('未能识别，请手动填写', 2000);
-}// ============================================
-// OCR（Tesseract.js）
+}
+
+// ============================================
+// OCR
 // ============================================
 async function getOcrWorker(progressTarget) {
     if (ocrWorker) return ocrWorker;
@@ -549,8 +498,7 @@ async function getOcrWorker(progressTarget) {
             if (!progressEl || progressEl.classList.contains('hidden')) return;
             if (m.status === 'recognizing text') {
                 const p = Math.round((m.progress || 0) * 100);
-                fillEl.style.width = p + '%';
-                statusEl.textContent = `识别中... ${p}%`;
+                fillEl.style.width = p + '%'; statusEl.textContent = `识别中... ${p}%`;
             } else if (m.status === 'loading language traineddata') {
                 fillEl.style.width = '20%'; statusEl.textContent = '正在下载语言包...';
             } else if (m.status === 'initializing api') {
@@ -607,24 +555,15 @@ ocrRunBtn.addEventListener('click', async () => {
         const result = extractFromText(text);
         if (result.name) dishNameInput.value = result.name;
         if (result.steps) stepsInput.value = result.steps;
-        if (result.name || result.steps) {
-            showToast('✨ 识别完成，请核对', 2500);
-            ocrStatus.textContent = '识别完成';
-        } else {
-            stepsInput.value = text.trim();
-            showToast('已识别文字，请手动整理', 2500);
-            ocrStatus.textContent = '识别完成';
-        }
+        if (result.name || result.steps) { showToast('✨ 识别完成，请核对', 2500); ocrStatus.textContent = '识别完成'; }
+        else { stepsInput.value = text.trim(); showToast('已识别文字，请手动整理', 2500); ocrStatus.textContent = '识别完成'; }
     } catch (err) {
         console.error('OCR 失败：', err);
         showToast('识别失败', 2500);
         ocrStatus.textContent = '识别失败';
-    } finally {
-        ocrRunBtn.disabled = false;
-    }
+    } finally { ocrRunBtn.disabled = false; }
 });
 
-// 冰箱 OCR
 fridgeOcrPickBtn.addEventListener('click', () => fridgeOcrFileInput.click());
 fridgeOcrFileInput.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
@@ -681,8 +620,10 @@ fridgeOcrRunBtn.addEventListener('click', async () => {
         for (const name of items) {
             const exists = fridgeItems.some(f => f.name === name);
             if (!exists) {
-                const { error } = await supabaseClient.from('fridge_items').insert({ user_id: currentUser.id, name: name });
-                if (!error) added++;
+                await db.collection('fridge_items').add({
+                    userId: currentUser.uid, name: name, createdAt: Date.now()
+                });
+                added++;
             }
         }
         await loadAllData();
@@ -704,19 +645,16 @@ fridgeOcrRunBtn.addEventListener('click', async () => {
 
 function parseFridgeText(text) {
     if (!text) return [];
-    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-        .replace(/[，、；;]/g, '\n').replace(/\s{2,}/g, '\n').replace(/\n+/g, '\n');
+    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[，、；;]/g, '\n').replace(/\s{2,}/g, '\n').replace(/\n+/g, '\n');
     const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const items = []; const seen = new Set();
     lines.forEach(line => {
-        let cleaned = line.replace(/^[\d]+[\.、．)\]\s]+/, '').replace(/^[-—–·•*]+\s*/, '')
-            .replace(/[。！!？?]+$/, '').trim();
+        let cleaned = line.replace(/^[\d]+[\.、．)\]\s]+/, '').replace(/^[-—–·•*]+\s*/, '').replace(/[。！!？?]+$/, '').trim();
         if (/^(食材|用料|材料|原料|配料|准备|清单|购物|小票|超市|合计|总计|金额|单价|数量|日期|时间|欢迎|谢谢)[：:]?/.test(cleaned)) return;
         if (cleaned.length < 2 || cleaned.length > 12) return;
         if (/^[\d\.\-\+\s]+$/.test(cleaned)) return;
         if (seen.has(cleaned)) return;
-        seen.add(cleaned);
-        items.push(cleaned);
+        seen.add(cleaned); items.push(cleaned);
     });
     return items;
 }
@@ -800,23 +738,20 @@ function cancelEdit() {
 }
 
 // ============================================
-// 图片上传到 Supabase Storage
+// 图片上传到 Firebase Storage
 // ============================================
 async function uploadImage(base64) {
     if (!base64 || !currentUser) return null;
     try {
         const compressed = await compressImage(base64, 800, 0.7);
         if (!compressed) return null;
-        const blob = base64ToBlob(compressed);
-        const fileName = `${currentUser.id}/${Date.now()}.jpg`;
-        const { error } = await supabaseClient.storage
-            .from(BUCKET_NAME)
-            .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
-        if (error) throw error;
-        const { data: urlData } = supabaseClient.storage
-            .from(BUCKET_NAME)
-            .getPublicUrl(fileName);
-        return urlData.publicUrl;
+        const response = await fetch(compressed);
+        const blob = await response.blob();
+        const fileName = `recipe-images/${currentUser.uid}/${Date.now()}.jpg`;
+        const ref = storage.ref(fileName);
+        await ref.put(blob);
+        const url = await ref.getDownloadURL();
+        return url;
     } catch (err) {
         console.error('图片上传失败：', err);
         return null;
@@ -858,17 +793,16 @@ async function saveOrUpdateRecipe() {
             if (!old || !old.categoryManual) {
                 updateData.category = classifyRecipe({ name, steps });
             }
-            const { error } = await supabaseClient.from('recipes').update(updateData).eq('id', editingId);
-            if (error) throw error;
+            await db.collection('recipes').doc(editingId).update(updateData);
             showToast('✅ 菜谱已更新', 1500);
         } else {
             const category = classifyRecipe({ name, steps });
-            const { error } = await supabaseClient.from('recipes').insert({
-                user_id: currentUser.id,
+            await db.collection('recipes').add({
+                userId: currentUser.uid,
                 name, steps, image: imageUrl,
-                category, category_manual: false
+                category, categoryManual: false,
+                createdAt: Date.now()
             });
-            if (error) throw error;
             showToast('✅ 菜谱已保存', 1500);
         }
 
@@ -892,15 +826,12 @@ function deleteRecipe(id) {
     const recipe = recipes.find(r => r.id === id);
     if (!recipe) return;
     showConfirm({
-        icon: '🗑️',
-        title: '删除菜谱',
+        icon: '🗑️', title: '删除菜谱',
         message: `确定要删除「${recipe.name}」吗？`,
-        okText: '删除',
-        okColor: '#c0392b',
+        okText: '删除', okColor: '#c0392b',
         onOk: async () => {
             try {
-                const { error } = await supabaseClient.from('recipes').delete().eq('id', id);
-                if (error) throw error;
+                await db.collection('recipes').doc(id).delete();
                 if (editingId === id) { resetFormToAddMode(); closeFormSheet(); }
                 selectedIds.delete(id);
                 await loadAllData();
@@ -919,15 +850,14 @@ function batchDelete() {
     const n = selectedIds.size;
     const ids = Array.from(selectedIds);
     showConfirm({
-        icon: '🗑️',
-        title: '批量删除',
+        icon: '🗑️', title: '批量删除',
         message: `确定要删除选中的 ${n} 道菜吗？`,
-        okText: `删除 ${n} 道`,
-        okColor: '#c0392b',
+        okText: `删除 ${n} 道`, okColor: '#c0392b',
         onOk: async () => {
             try {
-                const { error } = await supabaseClient.from('recipes').delete().in('id', ids);
-                if (error) throw error;
+                for (const id of ids) {
+                    await db.collection('recipes').doc(id).delete();
+                }
                 if (editingId && selectedIds.has(editingId)) { resetFormToAddMode(); closeFormSheet(); }
                 selectedIds.clear();
                 await loadAllData();
@@ -982,9 +912,7 @@ async function applyManualCategory(recipeId, newCat) {
     if (index === -1) return;
     if (recipes[index].category === newCat) { showToast('分类未改变', 1000); return; }
     try {
-        const { error } = await supabaseClient.from('recipes')
-            .update({ category: newCat, category_manual: true }).eq('id', recipeId);
-        if (error) throw error;
+        await db.collection('recipes').doc(recipeId).update({ category: newCat, categoryManual: true });
         await loadAllData();
         renderAll();
         showToast(`✅ 已改为「${getCategoryInfo(newCat).name}」`, 1500);
@@ -1308,7 +1236,7 @@ function renderRecipeList() {
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id = Number(btn.getAttribute('data-id'));
+            const id = btn.getAttribute('data-id');
             const recipe = recipes.find(r => r.id === id);
             if (recipe) enterEditMode(recipe);
         });
@@ -1316,20 +1244,20 @@ function renderRecipeList() {
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id = Number(btn.getAttribute('data-id'));
+            const id = btn.getAttribute('data-id');
             deleteRecipe(id);
         });
     });
     document.querySelectorAll('.category-tag').forEach(tag => {
         tag.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id = Number(tag.getAttribute('data-cat-id'));
+            const id = tag.getAttribute('data-cat-id');
             openCategoryPicker(id);
         });
     });
     document.querySelectorAll('.select-checkbox input').forEach(cb => {
         cb.addEventListener('change', (e) => {
-            const id = Number(cb.getAttribute('data-id'));
+            const id = cb.getAttribute('data-id');
             if (cb.checked) selectedIds.add(id);
             else selectedIds.delete(id);
             const card = cb.closest('.recipe-item');
@@ -1391,10 +1319,9 @@ function renderFridge() {
     fridgeList.querySelectorAll('.fridge-del').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            const id = Number(btn.getAttribute('data-id'));
+            const id = btn.getAttribute('data-id');
             try {
-                const { error } = await supabaseClient.from('fridge_items').delete().eq('id', id);
-                if (error) throw error;
+                await db.collection('fridge_items').doc(id).delete();
                 await loadAllData();
                 renderFridge();
                 showToast('已移除', 1200);
@@ -1416,8 +1343,10 @@ fridgeAddBtn.addEventListener('click', async () => {
     for (const name of parts) {
         const exists = fridgeItems.some(f => f.name === name);
         if (!exists) {
-            const { error } = await supabaseClient.from('fridge_items').insert({ user_id: currentUser.id, name: name });
-            if (!error) added++;
+            await db.collection('fridge_items').add({
+                userId: currentUser.uid, name: name, createdAt: Date.now()
+            });
+            added++;
         }
     }
     if (added > 0) {
@@ -1437,16 +1366,14 @@ fridgeInput.addEventListener('keypress', (e) => {
 fridgeClearBtn.addEventListener('click', () => {
     if (fridgeItems.length === 0) { showToast('冰箱已经是空的', 1200); return; }
     showConfirm({
-        icon: '🧊',
-        title: '清空冰箱',
+        icon: '🧊', title: '清空冰箱',
         message: `确定要清空冰箱里的 ${fridgeItems.length} 种食材吗？`,
-        okText: '清空',
-        okColor: '#c0392b',
+        okText: '清空', okColor: '#c0392b',
         onOk: async () => {
             try {
-                const ids = fridgeItems.map(f => f.id);
-                const { error } = await supabaseClient.from('fridge_items').delete().in('id', ids);
-                if (error) throw error;
+                for (const f of fridgeItems) {
+                    await db.collection('fridge_items').doc(f.id).delete();
+                }
                 await loadAllData();
                 renderFridge();
                 showToast('冰箱已清空', 1200);
@@ -1531,31 +1458,32 @@ function importBackup(file) {
             }
 
             showConfirm({
-                icon: '📥',
-                title: '导入备份',
+                icon: '📥', title: '导入备份',
                 message: `将导入 ${importedRecipes.length} 道菜谱、${importedFridge.length} 种食材。\n\n会替换当前所有数据，确定吗？`,
-                okText: '确认导入',
-                okColor: '#3d6a9e',
+                okText: '确认导入', okColor: '#3d6a9e',
                 onOk: async () => {
                     try {
-                        if (recipes.length > 0)
-                            await supabaseClient.from('recipes').delete().in('id', recipes.map(r => r.id));
-                        if (fridgeItems.length > 0)
-                            await supabaseClient.from('fridge_items').delete().in('id', fridgeItems.map(f => f.id));
+                        for (const r of recipes) {
+                            await db.collection('recipes').doc(r.id).delete();
+                        }
+                        for (const f of fridgeItems) {
+                            await db.collection('fridge_items').doc(f.id).delete();
+                        }
 
                         for (const r of importedRecipes) {
-                            await supabaseClient.from('recipes').insert({
-                                user_id: currentUser.id,
+                            await db.collection('recipes').add({
+                                userId: currentUser.uid,
                                 name: r.name || '', steps: r.steps || '',
                                 image: r.image || null,
                                 category: r.category || classifyRecipe(r),
-                                category_manual: r.categoryManual || false
+                                categoryManual: r.categoryManual || false,
+                                createdAt: Date.now()
                             });
                         }
                         for (const f of importedFridge) {
                             if (f.name && f.name.trim()) {
-                                await supabaseClient.from('fridge_items').insert({
-                                    user_id: currentUser.id, name: f.name.trim()
+                                await db.collection('fridge_items').add({
+                                    userId: currentUser.uid, name: f.name.trim(), createdAt: Date.now()
                                 });
                             }
                         }
@@ -1664,14 +1592,12 @@ importFileInput.addEventListener('change', (e) => {
 // ============================================
 // 初始化
 // ============================================
-async function init() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session && session.user) {
-        currentUser = session.user;
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        currentUser = user;
         showApp();
     } else {
+        currentUser = null;
         showAuth();
     }
-}
-
-init();
+});
