@@ -1587,15 +1587,3 @@ importFileInput.addEventListener('change', (e) => {
     importFileInput.value = '';
 });
 
-// ============================================
-// 初始化
-// ============================================
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        currentUser = user;
-        showApp();
-    } else {
-        currentUser = null;
-        showAuth();
-    }
-});
