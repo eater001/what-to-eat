@@ -1,0 +1,3388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>今天吃啥</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: #f7f3ed;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 14px 100px;
+        }
+
+        .app-container { max-width: 600px; width: 100%; }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding: 0 4px;
+            gap: 10px;
+        }
+
+        .app-header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #3e2c1b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .app-header h1 .emoji { font-size: 28px; }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header-fridge-btn {
+            background: #e8f5e5;
+            color: #3e7d34;
+            border: 1px solid #c6e3be;
+            border-radius: 40px;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .header-fridge-btn:active { background: #d8ebd3; transform: scale(0.97); }
+
+        .header-add-btn {
+            background: #3f2e1e;
+            color: #f5ede4;
+            border: none;
+            border-radius: 40px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            box-shadow: 0 6px 14px -6px rgba(60, 40, 20, 0.4);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .header-add-btn:active { background: #2d1f13; transform: scale(0.97); }
+
+        .subhead {
+            font-size: 14px;
+            color: #8b7356;
+            margin-bottom: 20px;
+            border-left: 4px solid #d9b382;
+            padding: 8px 14px;
+            background: #fefcf9;
+            border-radius: 0 12px 12px 0;
+            line-height: 1.4;
+        }
+
+        .recipes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 6px 0 12px;
+            padding: 0 4px;
+        }
+
+        .recipes-header h2 { font-size: 20px; font-weight: 600; color: #3e2c1b; }
+        .recipes-header .count-badge {
+            background: #e5d6c6;
+            border-radius: 40px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4a3726;
+        }
+
+        .category-bar {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 4px 2px 12px;
+            margin-bottom: 4px;
+            scrollbar-width: none;
+        }
+
+        .category-bar::-webkit-scrollbar { display: none; }
+
+        .category-chip {
+            flex-shrink: 0;
+            background: #ffffff;
+            border: 1.5px solid #e5d6c6;
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b5846;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .category-chip.active {
+            background: #3f2e1e;
+            border-color: #3f2e1e;
+            color: #f5ede4;
+        }
+
+        .category-chip .chip-count {
+            background: rgba(0, 0, 0, 0.08);
+            border-radius: 20px;
+            padding: 1px 7px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .category-chip.active .chip-count { background: rgba(255, 255, 255, 0.2); }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #fdfaf7;
+            border: 1px solid #efe2d6;
+            border-radius: 20px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .manage-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #5c4a35;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .manage-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #3f2e1e;
+            cursor: pointer;
+        }
+
+        .toolbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+        .batch-del-btn {
+            background: #fdeceb;
+            color: #c0392b;
+            border: 1px solid #f5c6c2;
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .batch-del-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .select-all-btn {
+            background: #eef3f9;
+            color: #5a7a9a;
+            border: 1px solid #cfe0f0;
+            border-radius: 40px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .share-btn {
+            background: #fff3e0;
+            color: #b06a1e;
+            border: 1px solid #f0d9b5;
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .share-btn:active { background: #f8e7cf; }
+
+        .empty-message {
+            background: #fdfaf7;
+            border-radius: 24px;
+            padding: 50px 20px;
+            text-align: center;
+            color: #b7a18c;
+            font-size: 16px;
+            border: 1px dashed #dccfc2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .empty-message span { font-size: 52px; }
+        .empty-message .empty-sub { font-size: 13px; color: #c4b3a2; }
+
+        .recipe-item {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 16px 18px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 18px -8px rgba(70, 50, 30, 0.12);
+            border: 1px solid #f1e5da;
+            display: flex;
+            gap: 16px;
+            transition: all 0.15s;
+        }
+
+        .recipe-item.selected {
+            border-color: #f0b8b3;
+            background: #fffafa;
+        }
+
+        .select-checkbox {
+            display: flex;
+            align-items: flex-start;
+            padding-top: 4px;
+        }
+
+        .select-checkbox input {
+            width: 20px;
+            height: 20px;
+            accent-color: #c0392b;
+            cursor: pointer;
+        }
+
+        .recipe-thumb {
+            width: 95px;
+            height: 95px;
+            border-radius: 20px;
+            background: #f5ede5;
+            flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d4c0ad;
+            font-size: 32px;
+            border: 1px solid #efe2d6;
+        }
+
+        .recipe-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+        .recipe-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+        .recipe-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2b1f14;
+            margin-bottom: 6px;
+            word-break: break-word;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .category-tag {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 40px;
+            background: #f0e9e0;
+            color: #7d633d;
+            border: 1px solid #e2d4c4;
+            white-space: nowrap;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .category-tag:hover { filter: brightness(0.96); transform: scale(1.03); }
+        .category-tag::after { content: '✎'; font-size: 9px; opacity: 0.55; margin-left: 1px; }
+
+        .category-tag.cat-meat { background: #fde8e3; color: #b54a32; border-color: #f5c6bb; }
+        .category-tag.cat-veg { background: #e8f5e5; color: #3e7d34; border-color: #c6e3be; }
+        .category-tag.cat-soup { background: #e5f0fa; color: #2e6a9e; border-color: #bfdcf2; }
+        .category-tag.cat-staple { background: #faf0dc; color: #9e7226; border-color: #edd9b0; }
+        .category-tag.cat-cold { background: #e9f7f5; color: #2e8b7a; border-color: #bce4dd; }
+        .category-tag.cat-dessert { background: #fbe8f2; color: #b03d7d; border-color: #f2c6df; }
+        .category-tag.cat-other { background: #eeeaf5; color: #6b5a9e; border-color: #d8cef0; }
+
+        .recipe-name .action-buttons { margin-left: auto; display: flex; gap: 6px; }
+
+        .recipe-name .edit-btn,
+        .recipe-name .delete-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 6px 4px;
+            color: #b8a18c;
+            border-radius: 8px;
+        }
+
+        .recipe-name .edit-btn:hover { color: #2e6b4a; }
+        .recipe-name .delete-btn:hover { color: #c0392b; }
+
+        .recipe-steps {
+            font-size: 14px;
+            color: #6b5846;
+            line-height: 1.45;
+            background: #faf5f0;
+            padding: 10px 12px;
+            border-radius: 16px;
+            margin-top: 4px;
+            word-break: break-word;
+            white-space: pre-wrap;
+            max-height: 100px;
+            overflow-y: auto;
+            border: 1px solid #f0e4d9;
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 26px;
+            right: 26px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #3f2e1e;
+            color: #f5ede4;
+            border: none;
+            font-size: 30px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 10px 24px -6px rgba(60, 40, 20, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            transition: transform 0.15s;
+        }
+
+        .fab:active { transform: scale(0.92); }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(30, 20, 10, 0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s;
+        }
+
+        .overlay.show { opacity: 1; pointer-events: auto; }
+
+        .sheet {
+            background: #ffffff;
+            border-radius: 28px 28px 0 0;
+            width: 100%;
+            max-width: 600px;
+            max-height: 92vh;
+            overflow-y: auto;
+            padding: 24px 20px 28px;
+            box-shadow: 0 -12px 30px -8px rgba(60, 40, 20, 0.25);
+            transform: translateY(30px);
+            transition: transform 0.25s;
+            border-top: 1px solid #f0e4d6;
+        }
+
+        .overlay.show .sheet { transform: translateY(0); }
+
+        .sheet-handle {
+            width: 42px;
+            height: 5px;
+            border-radius: 10px;
+            background: #e2d4c4;
+            margin: 0 auto 18px;
+        }
+
+        .sheet-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #4a3723;
+            font-size: 19px;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed #e7d8c8;
+        }
+
+        .sheet-title i { font-size: 22px; line-height: 1; }
+
+        .edit-banner {
+            background: #fff6e5;
+            border-radius: 40px;
+            padding: 10px 18px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #ecdbba;
+            font-size: 14px;
+            color: #7d633d;
+            font-weight: 500;
+        }
+
+        .edit-banner .cancel-edit {
+            background: none;
+            border: 1px solid #cdb79b;
+            border-radius: 40px;
+            padding: 6px 14px;
+            color: #7d633d;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .hidden { display: none !important; }
+
+        /* 冰箱面板 */
+        .fridge-intro {
+            background: #e8f5e5;
+            border: 1px solid #c6e3be;
+            border-radius: 18px;
+            padding: 14px 16px;
+            margin-bottom: 18px;
+            font-size: 13px;
+            color: #3e7d34;
+            line-height: 1.5;
+        }
+
+        .fridge-intro strong { color: #2e6b2a; }
+
+        .fridge-add-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .fridge-add-input {
+            flex: 1;
+            padding: 14px 16px;
+            font-size: 15px;
+            background: #fcf9f6;
+            border: 1.5px solid #eadbcd;
+            border-radius: 18px;
+            outline: none;
+            color: #2e241c;
+        }
+
+        .fridge-add-input:focus {
+            border-color: #c8a887;
+            box-shadow: 0 0 0 4px rgba(200, 168, 135, 0.15);
+            background: #ffffff;
+        }
+
+        .fridge-add-btn {
+            background: #3e7d34;
+            color: #fff;
+            border: none;
+            border-radius: 40px;
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 6px 12px -6px rgba(62, 125, 52, 0.5);
+        }
+
+        .fridge-add-btn:active { background: #2e6b2a; transform: scale(0.97); }
+
+        .fridge-ocr-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .fridge-ocr-btn {
+            flex: 1;
+            background: #eef3f9;
+            color: #3d6a9e;
+            border: 1.5px solid #cfe0f0;
+            border-radius: 40px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 140px;
+        }
+
+        .fridge-ocr-btn:active { background: #dfe9f3; }
+
+        .fridge-ocr-preview {
+            position: relative;
+            margin-bottom: 14px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #cfe0f0;
+            background: #f5faff;
+        }
+
+        .fridge-ocr-preview img {
+            width: 100%;
+            display: block;
+            max-height: 180px;
+            object-fit: contain;
+        }
+
+        .fridge-ocr-preview .ocr-remove {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(60, 40, 20, 0.7);
+            color: #fff;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fridge-ocr-progress {
+            margin-bottom: 14px;
+            background: #f5faff;
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid #cfe0f0;
+        }
+
+        .fridge-ocr-progress-bar {
+            height: 8px;
+            background: #dbe8f3;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .fridge-ocr-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5b9bd5, #3d6a9e);
+            width: 0%;
+            transition: width 0.2s;
+            border-radius: 10px;
+        }
+
+        .fridge-ocr-status {
+            font-size: 12px;
+            color: #5a7a9a;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .fridge-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #fdfaf7;
+            border: 1px solid #efe2d6;
+            border-radius: 16px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .fridge-toolbar .fridge-count {
+            font-size: 14px;
+            font-weight: 600;
+            color: #3e7d34;
+        }
+
+        .fridge-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .fridge-clear-btn {
+            background: #fdeceb;
+            color: #c0392b;
+            border: 1px solid #f5c6c2;
+            border-radius: 40px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .fridge-clear-btn:active { background: #f8d7d4; }
+
+        .fridge-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .fridge-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #ffffff;
+            border: 1px solid #eef2ea;
+            border-radius: 18px;
+            padding: 14px 16px;
+            box-shadow: 0 4px 12px -8px rgba(60, 90, 50, 0.15);
+        }
+
+        .fridge-item .fridge-emoji {
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .fridge-item .fridge-name {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 500;
+            color: #2b3a26;
+            word-break: break-word;
+        }
+
+        .fridge-item .fridge-del {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #c2ab97;
+            padding: 4px 6px;
+            border-radius: 8px;
+        }
+
+        .fridge-item .fridge-del:hover { color: #c0392b; }
+
+        .fridge-empty {
+            text-align: center;
+            color: #b7c4b0;
+            font-size: 14px;
+            padding: 30px 20px;
+            border: 1px dashed #d6e3d0;
+            border-radius: 18px;
+            background: #fafdf9;
+        }
+
+        .fridge-hint {
+            font-size: 12px;
+            color: #9cb096;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* 智能输入区 */
+        .smart-zone {
+            background: #f0f7ff;
+            border: 1.5px dashed #a8c8e8;
+            border-radius: 20px;
+            padding: 14px;
+            margin-bottom: 20px;
+        }
+
+        .smart-tabs {
+            display: flex;
+            gap: 6px;
+            background: #e3eef9;
+            border-radius: 40px;
+            padding: 4px;
+            margin-bottom: 12px;
+        }
+
+        .smart-tab {
+            flex: 1;
+            background: none;
+            border: none;
+            border-radius: 40px;
+            padding: 9px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #5a7a9a;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .smart-tab.active {
+            background: #ffffff;
+            color: #2e5580;
+            box-shadow: 0 2px 6px -2px rgba(50, 90, 140, 0.3);
+        }
+
+        .smart-panel { display: none; }
+        .smart-panel.active { display: block; }
+
+        .paste-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .paste-header .label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #3d6a9e;
+        }
+
+        .paste-header .hint { font-size: 11px; color: #7b9cc0; }
+
+        .paste-input {
+            width: 100%;
+            min-height: 90px;
+            padding: 12px 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            background: #ffffff;
+            border: 1.5px solid #cfe0f0;
+            border-radius: 14px;
+            outline: none;
+            color: #2e3b4a;
+            resize: vertical;
+        }
+
+        .paste-input:focus { border-color: #5b9bd5; }
+        .paste-input::placeholder { color: #a8bdd4; }
+
+        .paste-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .extract-btn {
+            background: #3d6a9e;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            flex: 1;
+            justify-content: center;
+            min-width: 150px;
+            box-shadow: 0 6px 12px -6px rgba(50, 90, 140, 0.4);
+        }
+
+        .extract-btn:active { background: #2e5580; transform: scale(0.98); }
+
+        .clear-paste-btn {
+            background: #eef3f9;
+            color: #5a7a9a;
+            border: 1px solid #cfe0f0;
+            border-radius: 40px;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .ocr-drop {
+            background: #ffffff;
+            border: 2px dashed #cfe0f0;
+            border-radius: 16px;
+            padding: 20px 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .ocr-drop:hover { background: #f5faff; border-color: #a8c8e8; }
+        .ocr-drop .ocr-icon { font-size: 38px; margin-bottom: 8px; }
+        .ocr-drop .ocr-text { font-size: 14px; font-weight: 600; color: #3d6a9e; margin-bottom: 4px; }
+        .ocr-drop .ocr-hint { font-size: 12px; color: #8ba9c4; }
+
+        .ocr-preview {
+            position: relative;
+            margin-top: 12px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #cfe0f0;
+            background: #f5faff;
+        }
+
+        .ocr-preview img {
+            width: 100%;
+            display: block;
+            max-height: 220px;
+            object-fit: contain;
+            background: #f5faff;
+        }
+
+        .ocr-preview .ocr-remove {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(60, 40, 20, 0.7);
+            color: #fff;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ocr-progress {
+            margin-top: 12px;
+            background: #f5faff;
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid #cfe0f0;
+        }
+
+        .ocr-progress-bar {
+            height: 8px;
+            background: #dbe8f3;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .ocr-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5b9bd5, #3d6a9e);
+            width: 0%;
+            transition: width 0.2s;
+            border-radius: 10px;
+        }
+
+        .ocr-status {
+            font-size: 12px;
+            color: #5a7a9a;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .ocr-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .ocr-run-btn {
+            background: #3d6a9e;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            flex: 1;
+            justify-content: center;
+            min-width: 150px;
+            box-shadow: 0 6px 12px -6px rgba(50, 90, 140, 0.4);
+        }
+
+        .ocr-run-btn:disabled {
+            background: #b8c9db;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .ocr-run-btn:not(:disabled):active {
+            background: #2e5580;
+            transform: scale(0.98);
+        }
+
+        .img-upload-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .preview-container {
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            background: #faf6f1;
+            border-radius: 20px;
+            border: 2px dashed #d9c6b0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .preview-container:hover { background: #f5ede4; }
+        .preview-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .placeholder-icon { font-size: 40px; color: #c8b09b; margin-bottom: 6px; }
+        .placeholder-text { color: #b8a18c; font-size: 14px; font-weight: 500; }
+
+        .upload-btn {
+            background: #f1e7dd;
+            border: none;
+            border-radius: 40px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4e3a28;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            border: 1px solid #e2d2c0;
+        }
+
+        .upload-btn:active { background: #e3d4c4; }
+        .upload-btn input[type="file"] { display: none; }
+
+        .field { margin-bottom: 18px; }
+
+        .field label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #5c4a35;
+            display: block;
+            margin-bottom: 7px;
+        }
+
+        .field input,
+        .field textarea {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 15px;
+            background: #fcf9f6;
+            border: 1.5px solid #eadbcd;
+            border-radius: 18px;
+            outline: none;
+            color: #2e241c;
+            resize: vertical;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            border-color: #c8a887;
+            box-shadow: 0 0 0 4px rgba(200, 168, 135, 0.15);
+            background: #ffffff;
+        }
+
+        .field textarea { min-height: 120px; line-height: 1.5; }
+        .field input::placeholder,
+        .field textarea::placeholder { color: #b8a99a; }
+
+        .save-btn {
+            background: #3f2e1e;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 17px 24px;
+            font-size: 17px;
+            font-weight: 600;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px -8px rgba(60, 40, 20, 0.3);
+            margin-top: 8px;
+            border: 1px solid #52412d;
+        }
+
+        .save-btn:active { background: #2d1f13; transform: scale(0.98); }
+        .save-btn.update-mode { background: #2e6b4a; border-color: #1e4a32; }
+
+        .sheet-close-btn {
+            background: none;
+            border: 1px solid #e2d4c4;
+            border-radius: 40px;
+            padding: 10px 18px;
+            font-size: 14px;
+            color: #7d633d;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+            font-weight: 500;
+        }
+
+        .sheet-close-btn:active { background: #f7f0e8; }
+
+        .category-picker-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(30, 20, 10, 0.45);
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .category-picker-overlay.show { opacity: 1; pointer-events: auto; }
+
+        .category-picker {
+            background: #ffffff;
+            border-radius: 28px;
+            width: 100%;
+            max-width: 420px;
+            padding: 24px 20px 20px;
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.3);
+            border: 1px solid #f0e4d6;
+            transform: translateY(12px) scale(0.97);
+            transition: transform 0.2s;
+        }
+
+        .category-picker-overlay.show .category-picker { transform: translateY(0) scale(1); }
+
+        .picker-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #3e2c1b;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .picker-subtitle {
+            font-size: 13px;
+            color: #9c8870;
+            margin-bottom: 18px;
+            word-break: break-word;
+        }
+
+        .picker-subtitle strong { color: #5c4a35; }
+
+        .picker-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .picker-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 14px;
+            border-radius: 18px;
+            border: 1.5px solid #eee2d6;
+            background: #fdfaf7;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: #4a3726;
+        }
+
+        .picker-option:hover { background: #f7efe6; }
+        .picker-option.current {
+            border-color: #3f2e1e;
+            background: #f5ede4;
+            box-shadow: 0 0 0 3px rgba(63, 46, 30, 0.1);
+        }
+
+        .picker-option .opt-icon { font-size: 20px; }
+        .picker-option .opt-check { margin-left: auto; font-size: 14px; color: #3f2e1e; font-weight: 700; }
+
+        .picker-actions { display: flex; gap: 10px; }
+
+        .picker-cancel {
+            flex: 1;
+            padding: 14px;
+            border-radius: 40px;
+            border: 1px solid #e2d4c4;
+            background: #faf6f1;
+            color: #7d633d;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .share-panel {
+            background: #ffffff;
+            border-radius: 28px;
+            width: 100%;
+            max-width: 440px;
+            padding: 26px 22px 22px;
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.3);
+            border: 1px solid #f0e4d6;
+            transform: translateY(12px) scale(0.97);
+            transition: transform 0.2s;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .share-overlay .share-panel { transform: translateY(0) scale(1); }
+        .share-overlay.show .share-panel { transform: translateY(0) scale(1); }
+
+        .share-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #3e2c1b;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .share-desc {
+            font-size: 13px;
+            color: #9c8870;
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+
+        .share-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f5faff;
+            border: 1.5px solid #cfe0f0;
+            border-radius: 16px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .share-checkbox-row input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #3d6a9e;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .share-checkbox-row .cb-text {
+            flex: 1;
+            font-size: 13px;
+            color: #3d6a9e;
+            line-height: 1.4;
+        }
+
+        .share-checkbox-row .cb-text strong {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2e5580;
+            margin-bottom: 2px;
+        }
+
+        .share-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+
+        .share-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1.5px solid #eee2d6;
+            background: #fdfaf7;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s;
+        }
+
+        .share-option:hover { background: #f7efe6; border-color: #e0cdb8; }
+        .share-option .opt-icon { font-size: 26px; flex-shrink: 0; }
+        .share-option .opt-text { flex: 1; min-width: 0; }
+        .share-option .opt-text .opt-name { font-size: 15px; font-weight: 600; color: #3e2c1b; margin-bottom: 2px; }
+        .share-option .opt-text .opt-desc { font-size: 12px; color: #9c8870; line-height: 1.4; }
+
+        .share-link-box {
+            background: #f5f0e9;
+            border: 1px solid #e2d4c4;
+            border-radius: 16px;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: #6b5846;
+            word-break: break-all;
+            margin-bottom: 14px;
+            max-height: 120px;
+            overflow-y: auto;
+            line-height: 1.5;
+            font-family: monospace;
+        }
+
+        .share-link-info {
+            background: #fff6e5;
+            border: 1px solid #ecdbba;
+            border-radius: 14px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #7d633d;
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+
+        .share-link-info.warning {
+            background: #fdeceb;
+            border-color: #f5c6c2;
+            color: #a93226;
+        }
+
+        .share-actions { display: flex; gap: 10px; }
+
+        .share-cancel {
+            flex: 1;
+            padding: 14px;
+            border-radius: 40px;
+            border: 1px solid #e2d4c4;
+            background: #faf6f1;
+            color: #7d633d;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .share-confirm {
+            flex: 1;
+            padding: 14px;
+            border-radius: 40px;
+            border: none;
+            background: #3f2e1e;
+            color: #f5ede4;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .share-confirm:active { background: #2d1f13; }
+
+        .guest-banner {
+            background: linear-gradient(135deg, #fff6e5 0%, #fef0d9 100%);
+            border: 1.5px solid #f0d9b5;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 22px;
+            text-align: center;
+        }
+
+        .guest-banner .guest-icon { font-size: 42px; margin-bottom: 8px; }
+        .guest-banner .guest-title { font-size: 19px; font-weight: 700; color: #8b5a1e; margin-bottom: 6px; }
+        .guest-banner .guest-desc { font-size: 14px; color: #a07a3e; line-height: 1.5; }
+
+        .guest-cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 1px solid #eadbcd;
+            box-shadow: 0 -6px 20px -6px rgba(80, 50, 20, 0.15);
+            padding: 14px 18px;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .guest-cart-bar .cart-info { flex: 1; font-size: 14px; color: #5c4a35; font-weight: 500; }
+        .guest-cart-bar .cart-info .cart-count { color: #b06a1e; font-weight: 700; font-size: 16px; }
+
+        .guest-cart-bar .cart-submit {
+            background: #b06a1e;
+            color: #fff;
+            border: none;
+            border-radius: 40px;
+            padding: 14px 26px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 6px 12px -6px rgba(176, 106, 30, 0.5);
+        }
+
+        .guest-cart-bar .cart-submit:disabled {
+            background: #d8c3a4;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .guest-recipe-item {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 16px 18px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 18px -8px rgba(70, 50, 30, 0.12);
+            border: 1.5px solid #f1e5da;
+            display: flex;
+            gap: 16px;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+
+        .guest-recipe-item.picked {
+            border-color: #e8b87a;
+            background: #fffaf2;
+            box-shadow: 0 8px 18px -6px rgba(200, 140, 60, 0.2);
+        }
+
+        .guest-recipe-item .recipe-thumb {
+            width: 95px;
+            height: 95px;
+            border-radius: 20px;
+            background: #f5ede5;
+            flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d4c0ad;
+            font-size: 32px;
+            border: 1px solid #efe2d6;
+        }
+
+        .guest-recipe-item .recipe-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .guest-recipe-item .recipe-info { flex: 1; min-width: 0; }
+
+        .guest-recipe-item .recipe-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: #2b1f14;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .guest-recipe-item .recipe-steps {
+            font-size: 13px;
+            color: #6b5846;
+            line-height: 1.45;
+            background: #faf5f0;
+            padding: 8px 10px;
+            border-radius: 14px;
+            white-space: pre-wrap;
+            max-height: 70px;
+            overflow-y: auto;
+            border: 1px solid #f0e4d9;
+        }
+
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(30, 20, 10, 0.5);
+            z-index: 1500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .confirm-overlay.show { opacity: 1; pointer-events: auto; }
+
+        .confirm-box {
+            background: #ffffff;
+            border-radius: 26px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px 22px 20px;
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.35);
+            border: 1px solid #f0e4d6;
+            transform: scale(0.92);
+            transition: transform 0.2s;
+            text-align: center;
+        }
+
+        .confirm-overlay.show .confirm-box { transform: scale(1); }
+
+        .confirm-icon { font-size: 42px; margin-bottom: 10px; }
+        .confirm-title { font-size: 18px; font-weight: 700; color: #3e2c1b; margin-bottom: 8px; }
+        .confirm-message { font-size: 14px; color: #7d6a56; line-height: 1.5; margin-bottom: 22px; word-break: break-word; }
+        .confirm-actions { display: flex; gap: 10px; }
+
+        .confirm-cancel {
+            flex: 1;
+            padding: 14px;
+            border-radius: 40px;
+            border: 1px solid #e2d4c4;
+            background: #faf6f1;
+            color: #7d633d;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .confirm-ok {
+            flex: 1;
+            padding: 14px;
+            border-radius: 40px;
+            border: none;
+            background: #c0392b;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 6px 14px -6px rgba(192, 57, 43, 0.5);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3e2e1f;
+            color: #f5ede4;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 15px;
+            font-weight: 500;
+            box-shadow: 0 10px 20px -6px rgba(0, 0, 0, 0.25);
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.25s;
+            pointer-events: none;
+            max-width: 90vw;
+            text-align: center;
+            border: 1px solid #6b5540;
+        }
+
+        .toast.show { opacity: 1; }
+
+        /* 专属冰箱 overlay 的 z-index，避免和分享弹层冲突 */
+        #fridgeOverlay { z-index: 1050; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div id="ownerView">
+            <div class="app-header">
+                <h1>
+                    <span class="emoji">🍜</span> 今天吃啥
+                </h1>
+                <div class="header-actions">
+                    <button class="header-fridge-btn" id="fridgeBtn">
+                        🧊 冰箱
+                    </button>
+                    <button class="header-add-btn" id="headerAddBtn">
+                        ＋ 添加
+                    </button>
+                </div>
+            </div>
+
+            <div class="subhead">
+                📸 拍下菜品 · 记下步骤 · 留住味道
+            </div>
+
+            <div class="recipes-header">
+                <h2>🍽️ 我的菜谱</h2>
+                <div class="count-badge" id="recipeCount">0 道</div>
+            </div>
+
+            <div class="category-bar" id="categoryBar"></div>
+
+            <div class="toolbar">
+                <label class="manage-toggle">
+                    <input type="checkbox" id="manageModeToggle">
+                    <span>批量管理</span>
+                </label>
+                <div class="toolbar-actions">
+                    <button class="select-all-btn hidden" id="selectAllBtn">全选</button>
+                    <button class="batch-del-btn hidden" id="batchDelBtn" disabled>
+                        🗑️ 删除 (<span id="selectedCount">0</span>)
+                    </button>
+                    <button class="share-btn" id="shareBtn">📤 分享点菜</button>
+                </div>
+            </div>
+
+            <div id="recipeList"></div>
+        </div>
+
+        <div id="guestView" class="hidden">
+            <div class="guest-banner">
+                <div class="guest-icon">🍽️</div>
+                <div class="guest-title" id="guestTitle">有人喊你点菜啦</div>
+                <div class="guest-desc" id="guestDesc">从下面的菜谱里勾选想吃的，生成点菜清单</div>
+            </div>
+            <div id="guestRecipeList"></div>
+            <div style="height: 90px;"></div>
+        </div>
+    </div>
+
+    <button class="fab" id="fabBtn" title="添加新菜">＋</button>
+
+    <!-- 添加/编辑菜谱弹层 -->
+    <div class="overlay" id="formOverlay">
+        <div class="sheet" id="formSheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-title">
+                <i id="formIcon">📝</i> <span id="formTitle">添加新菜</span>
+            </div>
+
+            <div class="edit-banner hidden" id="editBanner">
+                <span>✏️ 正在编辑菜谱</span>
+                <button class="cancel-edit" id="cancelEditBtn">取消编辑</button>
+            </div>
+
+            <div class="smart-zone">
+                <div class="smart-tabs">
+                    <button class="smart-tab active" data-tab="paste">📋 粘贴文案</button>
+                    <button class="smart-tab" data-tab="image">🖼️ 图片识别</button>
+                </div>
+
+                <div class="smart-panel active" id="panel-paste">
+                    <div class="paste-header">
+                        <span class="label">📋 从平台文案智能提取</span>
+                        <span class="hint">小红书 / 抖音等复制文案</span>
+                    </div>
+                    <textarea
+                        id="pasteInput"
+                        class="paste-input"
+                        placeholder="把小红书/抖音等平台的菜谱文案粘贴到这里，点击下方按钮自动提取菜名和步骤～"
+                    ></textarea>
+                    <div class="paste-actions">
+                        <button class="extract-btn" id="extractBtn">✨ 智能提取菜名和步骤</button>
+                        <button class="clear-paste-btn" id="clearPasteBtn">🧹 清空</button>
+                    </div>
+                </div>
+
+                <div class="smart-panel" id="panel-image">
+                    <div class="paste-header">
+                        <span class="label">🖼️ 上传菜谱截图识别文字</span>
+                        <span class="hint">印刷体效果最好</span>
+                    </div>
+
+                    <div class="ocr-drop" id="ocrDrop">
+                        <div class="ocr-icon">📷</div>
+                        <div class="ocr-text">点击选择菜谱截图</div>
+                        <div class="ocr-hint">支持 JPG / PNG，识别图片中的文字</div>
+                    </div>
+                    <input type="file" id="ocrFileInput" accept="image/*" style="display:none;">
+
+                    <div class="ocr-preview hidden" id="ocrPreview">
+                        <img id="ocrPreviewImg" src="" alt="识别预览">
+                        <button class="ocr-remove" id="ocrRemoveBtn" title="移除">✕</button>
+                    </div>
+
+                    <div class="ocr-progress hidden" id="ocrProgress">
+                        <div class="ocr-progress-bar">
+                            <div class="ocr-progress-fill" id="ocrProgressFill"></div>
+                        </div>
+                        <div class="ocr-status" id="ocrStatus">准备中...</div>
+                    </div>
+
+                    <div class="ocr-actions">
+                        <button class="ocr-run-btn" id="ocrRunBtn" disabled>🔍 开始识别文字</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="img-upload-area">
+                <div class="preview-container" id="previewContainer">
+                    <div id="previewPlaceholder" style="display: flex; flex-direction: column; align-items: center;">
+                        <div class="placeholder-icon">🥘</div>
+                        <div class="placeholder-text">点击添加菜品展示图</div>
+                    </div>
+                    <img id="previewImg" class="preview-img hidden" src="" alt="预览">
+                </div>
+                <label class="upload-btn" for="imageInput">
+                    📁 选择菜品图
+                    <input type="file" id="imageInput" accept="image/*">
+                </label>
+            </div>
+
+            <div class="field" style="margin-top: 18px;">
+                <label for="dishName">菜名</label>
+                <input type="text" id="dishName" placeholder="例如：红烧排骨、蒜蓉西兰花..." maxlength="40">
+            </div>
+
+            <div class="field">
+                <label for="steps">关键步骤</label>
+                <textarea id="steps" placeholder="例如：&#10;1. 排骨焯水去腥&#10;2. 炒糖色至焦黄&#10;3. 加入调料炖煮30分钟&#10;4. 大火收汁"></textarea>
+            </div>
+
+            <button class="save-btn" id="saveBtn">💾 保存这道菜</button>
+            <button class="sheet-close-btn" id="sheetCloseBtn">取消</button>
+        </div>
+    </div>
+
+    <!-- 冰箱弹层 -->
+    <div class="overlay" id="fridgeOverlay">
+        <div class="sheet" id="fridgeSheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-title">
+                <i>🧊</i> <span>我的冰箱</span>
+            </div>
+
+            <div class="fridge-intro">
+                <strong>记录家里现有的食材</strong><br>
+                手动输入，或上传冰箱/购物小票照片自动识别文字。识别出的内容会按行/逗号自动拆分成多条食材。
+            </div>
+
+            <div class="fridge-add-row">
+                <input type="text" id="fridgeInput" class="fridge-add-input" placeholder="例如：鸡蛋、西红柿、排骨..." maxlength="30">
+                <button class="fridge-add-btn" id="fridgeAddBtn">添加</button>
+            </div>
+
+            <div class="fridge-ocr-row">
+                <button class="fridge-ocr-btn" id="fridgeOcrPickBtn">📷 拍照/选图识别</button>
+            </div>
+            <input type="file" id="fridgeOcrFileInput" accept="image/*" style="display:none;">
+
+            <div class="fridge-ocr-preview hidden" id="fridgeOcrPreview">
+                <img id="fridgeOcrPreviewImg" src="" alt="识别预览">
+                <button class="ocr-remove" id="fridgeOcrRemoveBtn" title="移除">✕</button>
+            </div>
+
+            <div class="fridge-ocr-progress hidden" id="fridgeOcrProgress">
+                <div class="fridge-ocr-progress-bar">
+                    <div class="fridge-ocr-progress-fill" id="fridgeOcrProgressFill"></div>
+                </div>
+                <div class="fridge-ocr-status" id="fridgeOcrStatus">准备中...</div>
+            </div>
+
+            <div class="fridge-ocr-row hidden" id="fridgeOcrRunRow">
+                <button class="fridge-ocr-btn" id="fridgeOcrRunBtn" style="background:#3d6a9e;color:#fff;border-color:#3d6a9e;">🔍 开始识别文字</button>
+            </div>
+
+            <div class="fridge-toolbar">
+                <span class="fridge-count" id="fridgeCount">共 0 种食材</span>
+                <div class="fridge-toolbar-actions">
+                    <button class="fridge-clear-btn" id="fridgeClearBtn">清空冰箱</button>
+                </div>
+            </div>
+
+            <div class="fridge-list" id="fridgeList"></div>
+            <div class="fridge-hint" id="fridgeHint"></div>
+
+            <button class="sheet-close-btn" id="fridgeCloseBtn" style="margin-top:18px;">关闭</button>
+        </div>
+    </div>
+
+    <!-- 分类选择弹层 -->
+    <div class="category-picker-overlay" id="categoryPickerOverlay">
+        <div class="category-picker">
+            <div class="picker-title">🏷️ 手动纠正分类</div>
+            <div class="picker-subtitle" id="pickerSubtitle"></div>
+            <div class="picker-grid" id="pickerGrid"></div>
+            <div class="picker-actions">
+                <button class="picker-cancel" id="pickerCancelBtn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分享弹层 -->
+    <div class="overlay" id="shareOverlay">
+        <div class="share-panel">
+            <div class="share-title">📤 分享菜谱给舍友</div>
+            <div class="share-desc">
+                选择分享方式，生成链接后发给舍友，他们就能勾选想吃的菜。
+            </div>
+
+            <label class="share-checkbox-row">
+                <input type="checkbox" id="shareWithImages">
+                <div class="cb-text">
+                    <strong>带上菜品图片</strong>
+                    图片会压缩，链接会变长。建议不放，打开更快更稳。
+                </div>
+            </label>
+
+            <div class="share-options" id="shareOptions">
+                <div class="share-option" data-mode="all">
+                    <span class="opt-icon">📚</span>
+                    <div class="opt-text">
+                        <div class="opt-name">分享全部菜谱</div>
+                        <div class="opt-desc">把当前所有菜谱打包分享</div>
+                    </div>
+                </div>
+                <div class="share-option" data-mode="filtered">
+                    <span class="opt-icon">🔍</span>
+                    <div class="opt-text">
+                        <div class="opt-name">分享当前分类</div>
+                        <div class="opt-desc">只分享当前筛选分类下的菜谱</div>
+                    </div>
+                </div>
+                <div class="share-option" data-mode="selected">
+                    <span class="opt-icon">✅</span>
+                    <div class="opt-text">
+                        <div class="opt-name">分享选中的菜</div>
+                        <div class="opt-desc">在批量管理中勾选想分享的菜（当前已选 <span id="shareSelectedCount">0</span> 道）</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="share-link-info hidden" id="shareLinkInfo"></div>
+            <div class="share-link-box hidden" id="shareLinkBox"></div>
+
+            <div class="share-actions">
+                <button class="share-cancel" id="shareCancelBtn">取消</button>
+                <button class="share-confirm hidden" id="shareConfirmBtn">复制链接</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="guest-cart-bar hidden" id="guestCartBar">
+        <div class="cart-info">
+            已选 <span class="cart-count" id="guestCartCount">0</span> 道菜
+        </div>
+        <button class="cart-submit" id="guestSubmitBtn" disabled>生成点菜清单</button>
+    </div>
+
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-box">
+            <div class="confirm-icon" id="confirmIcon">🗑️</div>
+            <div class="confirm-title" id="confirmTitle">确认删除</div>
+            <div class="confirm-message" id="confirmMessage">确定要删除这道菜吗？</div>
+            <div class="confirm-actions">
+                <button class="confirm-cancel" id="confirmCancelBtn">取消</button>
+                <button class="confirm-ok" id="confirmOkBtn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function() {
+            const STORAGE_KEY = 'dish_records_app';
+            const FRIDGE_KEY = 'fridge_items';
+
+            const urlParams = new URLSearchParams(window.location.search);
+            let shareDataStr = urlParams.get('share');
+            if (!shareDataStr) {
+                const hash = window.location.hash || '';
+                const hashMatch = hash.match(/[#&]share=([^&]*)/);
+                if (hashMatch) {
+                    shareDataStr = decodeURIComponent(hashMatch[1]);
+                }
+            }
+            const isGuestMode = !!shareDataStr;
+
+            let recipes = [];
+            let currentImageBase64 = null;
+            let editingId = null;
+            let activeCategory = 'all';
+            let manageMode = false;
+            let selectedIds = new Set();
+            let pickerRecipeId = null;
+            let guestSelectedIds = new Set();
+
+            let ocrImageBase64 = null;
+            let ocrWorker = null;
+
+            // 冰箱
+            let fridgeItems = [];
+            let fridgeLoaded = false;
+            let fridgeOcrImageBase64 = null;
+
+            let confirmCallback = null;
+
+            // DOM 缓存
+            const ownerView = document.getElementById('ownerView');
+            const guestView = document.getElementById('guestView');
+            const previewImg = document.getElementById('previewImg');
+            const previewPlaceholder = document.getElementById('previewPlaceholder');
+            const previewContainer = document.getElementById('previewContainer');
+            const imageInput = document.getElementById('imageInput');
+            const dishNameInput = document.getElementById('dishName');
+            const stepsInput = document.getElementById('steps');
+            const saveBtn = document.getElementById('saveBtn');
+            const recipeListEl = document.getElementById('recipeList');
+            const recipeCountEl = document.getElementById('recipeCount');
+            const toastEl = document.getElementById('toast');
+            const formTitle = document.getElementById('formTitle');
+            const formIcon = document.getElementById('formIcon');
+            const editBanner = document.getElementById('editBanner');
+            const cancelEditBtn = document.getElementById('cancelEditBtn');
+            const pasteInput = document.getElementById('pasteInput');
+            const extractBtn = document.getElementById('extractBtn');
+            const clearPasteBtn = document.getElementById('clearPasteBtn');
+            const categoryBar = document.getElementById('categoryBar');
+            const manageModeToggle = document.getElementById('manageModeToggle');
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            const batchDelBtn = document.getElementById('batchDelBtn');
+            const selectedCount = document.getElementById('selectedCount');
+            const categoryPickerOverlay = document.getElementById('categoryPickerOverlay');
+            const pickerSubtitle = document.getElementById('pickerSubtitle');
+            const pickerGrid = document.getElementById('pickerGrid');
+            const pickerCancelBtn = document.getElementById('pickerCancelBtn');
+            const shareBtn = document.getElementById('shareBtn');
+            const shareOverlay = document.getElementById('shareOverlay');
+            const shareOptions = document.getElementById('shareOptions');
+            const shareLinkBox = document.getElementById('shareLinkBox');
+            const shareLinkInfo = document.getElementById('shareLinkInfo');
+            const shareCancelBtn = document.getElementById('shareCancelBtn');
+            const shareConfirmBtn = document.getElementById('shareConfirmBtn');
+            const shareSelectedCount = document.getElementById('shareSelectedCount');
+            const shareWithImages = document.getElementById('shareWithImages');
+            const guestRecipeList = document.getElementById('guestRecipeList');
+            const guestCartBar = document.getElementById('guestCartBar');
+            const guestCartCount = document.getElementById('guestCartCount');
+            const guestSubmitBtn = document.getElementById('guestSubmitBtn');
+            const guestTitle = document.getElementById('guestTitle');
+            const guestDesc = document.getElementById('guestDesc');
+            const fabBtn = document.getElementById('fabBtn');
+            const headerAddBtn = document.getElementById('headerAddBtn');
+            const formOverlay = document.getElementById('formOverlay');
+            const sheetCloseBtn = document.getElementById('sheetCloseBtn');
+
+            const fridgeBtn = document.getElementById('fridgeBtn');
+            const fridgeOverlay = document.getElementById('fridgeOverlay');
+            const fridgeCloseBtn = document.getElementById('fridgeCloseBtn');
+            const fridgeInput = document.getElementById('fridgeInput');
+            const fridgeAddBtn = document.getElementById('fridgeAddBtn');
+            const fridgeList = document.getElementById('fridgeList');
+            const fridgeCount = document.getElementById('fridgeCount');
+            const fridgeClearBtn = document.getElementById('fridgeClearBtn');
+            const fridgeHint = document.getElementById('fridgeHint');
+
+            const fridgeOcrPickBtn = document.getElementById('fridgeOcrPickBtn');
+            const fridgeOcrFileInput = document.getElementById('fridgeOcrFileInput');
+            const fridgeOcrPreview = document.getElementById('fridgeOcrPreview');
+            const fridgeOcrPreviewImg = document.getElementById('fridgeOcrPreviewImg');
+            const fridgeOcrRemoveBtn = document.getElementById('fridgeOcrRemoveBtn');
+            const fridgeOcrProgress = document.getElementById('fridgeOcrProgress');
+            const fridgeOcrProgressFill = document.getElementById('fridgeOcrProgressFill');
+            const fridgeOcrStatus = document.getElementById('fridgeOcrStatus');
+            const fridgeOcrRunRow = document.getElementById('fridgeOcrRunRow');
+            const fridgeOcrRunBtn = document.getElementById('fridgeOcrRunBtn');
+
+            const ocrDrop = document.getElementById('ocrDrop');
+            const ocrFileInput = document.getElementById('ocrFileInput');
+            const ocrPreview = document.getElementById('ocrPreview');
+            const ocrPreviewImg = document.getElementById('ocrPreviewImg');
+            const ocrRemoveBtn = document.getElementById('ocrRemoveBtn');
+            const ocrProgress = document.getElementById('ocrProgress');
+            const ocrProgressFill = document.getElementById('ocrProgressFill');
+            const ocrStatus = document.getElementById('ocrStatus');
+            const ocrRunBtn = document.getElementById('ocrRunBtn');
+
+            const confirmOverlay = document.getElementById('confirmOverlay');
+            const confirmIcon = document.getElementById('confirmIcon');
+            const confirmTitle = document.getElementById('confirmTitle');
+            const confirmMessage = document.getElementById('confirmMessage');
+            const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+            const confirmOkBtn = document.getElementById('confirmOkBtn');
+
+            // ---------- 确认弹层 ----------
+            function showConfirm(options) {
+                confirmIcon.textContent = options.icon || '❓';
+                confirmTitle.textContent = options.title || '确认操作';
+                confirmMessage.textContent = options.message || '';
+                confirmOkBtn.textContent = options.okText || '确定';
+                confirmOkBtn.style.background = options.okColor || '#c0392b';
+                confirmCallback = options.onOk || null;
+                confirmOverlay.classList.add('show');
+            }
+
+            function closeConfirm() {
+                confirmOverlay.classList.remove('show');
+                confirmCallback = null;
+            }
+
+            confirmCancelBtn.addEventListener('click', closeConfirm);
+            confirmOverlay.addEventListener('click', (e) => {
+                if (e.target === confirmOverlay) closeConfirm();
+            });
+            confirmOkBtn.addEventListener('click', () => {
+                const cb = confirmCallback;
+                closeConfirm();
+                if (typeof cb === 'function') cb();
+            });
+
+            // ---------- 分类 ----------
+            const CATEGORIES = [
+                { key: 'all',    name: '全部', icon: '🍱', cls: '' },
+                { key: 'meat',   name: '荤菜', icon: '🥩', cls: 'cat-meat' },
+                { key: 'veg',    name: '素菜', icon: '🥬', cls: 'cat-veg' },
+                { key: 'soup',   name: '汤羹', icon: '🍲', cls: 'cat-soup' },
+                { key: 'staple', name: '主食', icon: '🍚', cls: 'cat-staple' },
+                { key: 'cold',   name: '凉菜', icon: '🥗', cls: 'cat-cold' },
+                { key: 'dessert',name: '甜品', icon: '🍰', cls: 'cat-dessert' },
+                { key: 'other',  name: '其他', icon: '🍽️', cls: 'cat-other' }
+            ];
+
+            const PICKABLE_CATEGORIES = CATEGORIES.filter(c => c.key !== 'all');
+
+            const KEYWORDS = {
+                soup: [
+                    '汤','羹','煲','炖汤','排骨汤','鸡汤','鱼汤','紫菜汤','海带汤','冬瓜汤',
+                    '番茄汤','蘑菇汤','玉米汤','银耳羹','莲子羹','绿豆汤','红豆汤','老火汤',
+                    '浓汤','清汤','奶油蘑菇汤','罗宋汤','味增汤','蛋花汤','酸辣汤','胡辣汤'
+                ],
+                dessert: [
+                    '蛋糕','饼干','布丁','奶昔','冰淇淋','冰激凌','糖水','甜品','慕斯','派','挞',
+                    '曲奇','面包','吐司','奶茶','果汁','果酱','果冻','双皮奶','银耳羹','甜点',
+                    '雪糕','芝士蛋糕','提拉米苏','马卡龙','舒芙蕾','蛋挞','甜甜圈','奶冻'
+                ],
+                cold: [
+                    '凉拌','凉菜','拌菜','沙拉','口水鸡','拍黄瓜','醋泡','卤味','卤菜','皮蛋',
+                    '凉面','凉皮','夫妻肺片','白切鸡','蒜泥白肉','凉拌菜','手撕鸡','泡椒凤爪'
+                ],
+                staple: [
+                    '米饭','炒饭','盖饭','拌饭','面条','拉面','炒面','拌面','意面','米线','米粉',
+                    '粥','馒头','包子','饺子','馄饨','饼','馍','花卷','年糕','汤圆','春卷','煎饼',
+                    '油条','烧麦','小笼包','生煎','锅贴','披萨','汉堡','三明治','寿司','饭团'
+                ],
+                veg: [
+                    '青菜','白菜','菠菜','生菜','油麦菜','空心菜','西兰花','花菜','茄子','土豆',
+                    '番茄','西红柿','黄瓜','冬瓜','南瓜','丝瓜','苦瓜','豆角','四季豆','豆芽',
+                    '豆腐','蘑菇','香菇','金针菇','木耳','藕','萝卜','青椒','彩椒','洋葱','韭菜',
+                    '芹菜','莴笋','山药','玉米','豌豆','荷兰豆','干煸','清炒','蒜蓉','醋溜',
+                    '地三鲜','手撕包菜','凉拌黄瓜','炒时蔬','上汤娃娃菜','虎皮青椒'
+                ],
+                meat: [
+                    '排骨','鸡翅','鸡腿','鸡肉','鸭肉','鹅肉','牛肉','羊肉','猪肉','五花肉',
+                    '里脊','肉丝','肉片','肉末','丸子','狮子头','红烧肉','回锅肉','红烧','糖醋',
+                    '咕咾','宫保','辣子鸡','啤酒鸭','烤鸡','炸鸡','牛排','鱼','虾','蟹','贝',
+                    '蛤蜊','鱿鱼','培根','火腿','腊肠','香肠','叉烧','卤肉','酱肉','烤肉','煎肉',
+                    '小炒肉','水煮肉','水煮鱼','酸菜鱼','剁椒鱼头','糖醋里脊','京酱肉丝'
+                ]
+            };
+
+            function classifyRecipe(recipe) {
+                const rawName = (recipe.name || '').trim();
+                const name = rawName.toLowerCase();
+                const steps = (recipe.steps || '').toLowerCase();
+                const text = name + ' ' + steps;
+
+                if (/(汤|羹|煲)$/.test(rawName)) return 'soup';
+                if (/(粥|饭|面|粉|饼|包|饺|馄饨|馒头)$/.test(rawName)) return 'staple';
+
+                const priority = ['soup', 'dessert', 'cold', 'staple', 'veg', 'meat'];
+                for (const cat of priority) {
+                    const words = KEYWORDS[cat];
+                    if (words && words.some(w => text.includes(w))) return cat;
+                }
+                return 'other';
+            }
+
+            function getCategoryInfo(key) {
+                return CATEGORIES.find(c => c.key === key) || CATEGORIES[CATEGORIES.length - 1];
+            }
+
+            // ---------- 工具 ----------
+            function showToast(msg, duration = 2000) {
+                toastEl.textContent = msg;
+                toastEl.classList.add('show');
+                clearTimeout(window.toastTimer);
+                window.toastTimer = setTimeout(() => {
+                    toastEl.classList.remove('show');
+                }, duration);
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function compressImage(base64, maxSize = 300, quality = 0.6) {
+                return new Promise((resolve) => {
+                    if (!base64) { resolve(null); return; }
+                    const img = new Image();
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width <= maxSize && height <= maxSize && base64.length < 8000) {
+                            resolve(base64); return;
+                        }
+                        if (width > height) {
+                            if (width > maxSize) {
+                                height = Math.round(height * maxSize / width);
+                                width = maxSize;
+                            }
+                        } else {
+                            if (height > maxSize) {
+                                width = Math.round(width * maxSize / height);
+                                height = maxSize;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#f5ede5';
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = base64;
+                });
+            }
+
+            // ---------- 菜谱存储 ----------
+            function loadRecipes() {
+                try {
+                    const stored = localStorage.getItem(STORAGE_KEY);
+                    if (stored) {
+                        recipes = JSON.parse(stored);
+                    } else {
+                        recipes = [
+                            {
+                                id: Date.now() + 1,
+                                name: '番茄炒蛋',
+                                steps: '1. 番茄切块，鸡蛋加盐打散\n2. 热油炒鸡蛋，凝固后盛出\n3. 炒番茄出汁，加入鸡蛋翻炒\n4. 加盐、糖调味，出锅撒葱花',
+                                image: null
+                            },
+                            {
+                                id: Date.now() + 2,
+                                name: '蒜蓉西兰花',
+                                steps: '1. 西兰花掰小朵，盐水浸泡10分钟\n2. 焯水1分钟捞出过凉\n3. 爆香蒜末，加入西兰花翻炒\n4. 加盐、蚝油调味即可',
+                                image: null
+                            },
+                            {
+                                id: Date.now() + 3,
+                                name: '红烧排骨',
+                                steps: '1. 排骨冷水下锅焯水去腥\n2. 炒糖色至焦黄\n3. 加入排骨翻炒上色\n4. 加生抽老抽八角桂皮\n5. 加水炖煮30分钟大火收汁',
+                                image: null
+                            },
+                            {
+                                id: Date.now() + 4,
+                                name: '奶油蘑菇汤',
+                                steps: '1. 蘑菇切片，黄油炒香\n2. 加入面粉炒匀\n3. 倒入牛奶和奶油煮开\n4. 放入蘑菇煮5分钟，加盐黑胡椒调味',
+                                image: null
+                            }
+                        ];
+                    }
+                } catch (e) {
+                    console.warn('读取存储失败', e);
+                    recipes = [];
+                }
+                recipes = recipes.map(r => ({
+                    ...r,
+                    id: r.id || Date.now() + Math.random(),
+                    category: r.category || classifyRecipe(r),
+                    categoryManual: r.categoryManual || false
+                }));
+            }
+
+            function persistRecipes() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+                } catch (e) {
+                    console.warn('存储失败', e);
+                    showToast('存储空间不足，图片可能无法保存', 2500);
+                }
+            }
+
+            // ---------- 冰箱存储 ----------
+            function loadFridge() {
+                try {
+                    const stored = localStorage.getItem(FRIDGE_KEY);
+                    if (stored) {
+                        fridgeItems = JSON.parse(stored);
+                    } else {
+                        fridgeItems = [];
+                    }
+                } catch (e) {
+                    console.warn('读取冰箱失败', e);
+                    fridgeItems = [];
+                }
+                fridgeItems = fridgeItems.map(item => ({
+                    id: item.id || Date.now() + Math.random(),
+                    name: item.name || ''
+                })).filter(item => item.name.trim());
+            }
+
+            function persistFridge() {
+                try {
+                    localStorage.setItem(FRIDGE_KEY, JSON.stringify(fridgeItems));
+                } catch (e) {
+                    console.warn('存储冰箱失败', e);
+                    showToast('存储空间不足', 2000);
+                }
+            }
+
+            function ensureFridgeLoaded() {
+                if (!fridgeLoaded) {
+                    loadFridge();
+                    fridgeLoaded = true;
+                }
+            }
+
+            // ---------- 菜谱智能提取 ----------
+            function extractFromText(text) {
+                if (!text || !text.trim()) return { name: '', steps: '' };
+                let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length === 0) return { name: '', steps: '' };
+
+                let dishName = '';
+                let dishNameIndex = -1;
+
+                const namePatterns = [
+                    /^(?:菜名|名称|今天做|做了|分享|推荐|【|#)\s*[:：]?\s*(.+)/i,
+                    /^(.+?)(?:的做法|做法|教程|食谱|菜谱)/
+                ];
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (line.replace(/[\s\p{Emoji}]/gu, '').length < 2) continue;
+                    for (const pattern of namePatterns) {
+                        const match = line.match(pattern);
+                        if (match && match[1]) {
+                            dishName = match[1].trim();
+                            dishNameIndex = i;
+                            break;
+                        }
+                    }
+                    if (dishName) break;
+
+                    const commonDishWords = ['排骨','鸡翅','牛肉','鱼','虾','豆腐','茄子','土豆','番茄','西红柿','鸡蛋','西兰花','白菜','汤','面','饭','饼','包','糕','粥','锅','丝','片','块','丁','炒','烧','炖','煮','蒸','拌','烤','焖','烩','煎','炸','卤','酱','溜','爆'];
+                    if (i === 0 && line.length >= 4 && line.length <= 30) {
+                        const hasDishWord = commonDishWords.some(w => line.includes(w));
+                        if (hasDishWord || /^[\u4e00-\u9fa5a-zA-Z0-9\s]+$/.test(line)) {
+                            let candidate = line
+                                .replace(/^[#【\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+\s*/u, '')
+                                .replace(/\s*[#】\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+$/u, '')
+                                .trim();
+                            if (candidate.includes('的做法')) candidate = candidate.split('的做法')[0];
+                            else if (candidate.includes('做法')) candidate = candidate.split('做法')[0];
+                            if (candidate.length >= 2 && candidate.length <= 25) {
+                                dishName = candidate;
+                                dishNameIndex = 0;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!dishName) {
+                    let firstLine = lines[0] || '';
+                    firstLine = firstLine.replace(/[\p{Emoji}\u200d\uFE0F]/gu, '').trim();
+                    if (firstLine.length > 25) dishName = firstLine.substring(0, 22) + '...';
+                    else if (firstLine.length > 0) dishName = firstLine;
+                    dishNameIndex = 0;
+                }
+
+                dishName = dishName
+                    .replace(/^[#【\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+\s*/u, '')
+                    .replace(/\s*[#】\s🎉🔥✨💕🥘🍲🍜🍚🥗🍰]+$/u, '')
+                    .replace(/[：:]\s*$/, '')
+                    .trim();
+
+                let stepsText = '';
+                const stepKeywords = ['步骤','做法','方法','教程','制作','烹饪','操作','做法如下','步骤如下'];
+                let stepStartIndex = -1;
+
+                for (let i = 0; i < lines.length; i++) {
+                    if (i === dishNameIndex) continue;
+                    const line = lines[i];
+                    for (const kw of stepKeywords) {
+                        if (line.includes(kw)) {
+                            const cleaned = line.replace(/[步骤做法方法教程制作烹饪操作如下：:]/g, '').trim();
+                            stepStartIndex = cleaned.length === 0 ? i + 1 : i;
+                            break;
+                        }
+                    }
+                    if (stepStartIndex !== -1) break;
+                }
+
+                if (stepStartIndex === -1) {
+                    for (let i = 0; i < lines.length; i++) {
+                        if (i === dishNameIndex) continue;
+                        if (/^(?:\d+[\.、．]|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩|第[一二三四五六七八九十]+步)/.test(lines[i])) {
+                            stepStartIndex = i;
+                            break;
+                        }
+                    }
+                }
+                if (stepStartIndex === -1) stepStartIndex = Math.min(1, lines.length);
+
+                const stepLines = [];
+                for (let i = stepStartIndex; i < lines.length; i++) {
+                    if (i === dishNameIndex) continue;
+                    let line = lines[i];
+                    if (/^(?:食材|用料|材料|原料|配料|准备)[：:]/.test(line)) continue;
+                    line = line.replace(/^[步骤做法方法教程制作烹饪操作如下：:\s]+/i, '').trim();
+                    if (line.length === 0) continue;
+                    stepLines.push(line);
+                }
+
+                if (stepLines.length > 0) stepsText = stepLines.join('\n');
+                else {
+                    const remaining = lines.filter((_, idx) => idx !== dishNameIndex);
+                    stepsText = remaining.join('\n');
+                }
+
+                stepsText = stepsText.replace(/^(?:做法|步骤|方法|教程|制作|烹饪|操作)[：:\s]*/i, '').trim();
+                if (!stepsText) {
+                    stepsText = lines.filter((_, idx) => idx !== dishNameIndex).join('\n') || text.trim();
+                }
+                if (stepsText.length > 2000) stepsText = stepsText.substring(0, 2000) + '...';
+
+                return { name: dishName || '', steps: stepsText || '' };
+            }
+
+            function performExtract() {
+                const raw = pasteInput.value.trim();
+                if (!raw) { showToast('请先粘贴文案内容', 1500); pasteInput.focus(); return; }
+                const result = extractFromText(raw);
+                let extracted = false;
+                if (result.name) { dishNameInput.value = result.name; extracted = true; }
+                if (result.steps) { stepsInput.value = result.steps; extracted = true; }
+
+                if (extracted) {
+                    showToast('✨ 已提取菜名和步骤，请核对后保存', 2000);
+                    pasteInput.value = '';
+                    dishNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    showToast('未能识别出菜名或步骤，请手动填写', 2000);
+                }
+            }
+
+            // ---------- OCR 通用（带 progressTarget 参数） ----------
+            async function getOcrWorker(progressTarget) {
+                if (ocrWorker) return ocrWorker;
+                showToast('正在加载识别引擎（首次约需10秒）...', 3000);
+
+                ocrWorker = await Tesseract.createWorker('chi_sim+eng', 1, {
+                    logger: (m) => {
+                        const isRecipe = progressTarget === 'recipe';
+                        const progressEl = isRecipe ? ocrProgress : fridgeOcrProgress;
+                        const fillEl = isRecipe ? ocrProgressFill : fridgeOcrProgressFill;
+                        const statusEl = isRecipe ? ocrStatus : fridgeOcrStatus;
+
+                        if (!progressEl || progressEl.classList.contains('hidden')) return;
+
+                        if (m.status === 'recognizing text') {
+                            const p = Math.round((m.progress || 0) * 100);
+                            fillEl.style.width = p + '%';
+                            statusEl.textContent = `识别中... ${p}%`;
+                        } else if (m.status === 'loading language traineddata') {
+                            fillEl.style.width = '20%';
+                            statusEl.textContent = '正在下载语言包...';
+                        } else if (m.status === 'initializing api') {
+                            fillEl.style.width = '40%';
+                            statusEl.textContent = '正在初始化引擎...';
+                        }
+                    }
+                });
+                return ocrWorker;
+            }
+
+            // ---------- 菜谱 OCR ----------
+            ocrDrop.addEventListener('click', () => ocrFileInput.click());
+            ocrFileInput.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('image/')) {
+                    showToast('请选择图片文件', 1500);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    ocrImageBase64 = ev.target.result;
+                    ocrPreviewImg.src = ocrImageBase64;
+                    ocrPreview.classList.remove('hidden');
+                    ocrRunBtn.disabled = false;
+                    ocrProgress.classList.add('hidden');
+                    ocrProgressFill.style.width = '0%';
+                    ocrStatus.textContent = '准备中...';
+                };
+                reader.readAsDataURL(file);
+                ocrFileInput.value = '';
+            });
+
+            ocrRemoveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                ocrImageBase64 = null;
+                ocrPreviewImg.src = '';
+                ocrPreview.classList.add('hidden');
+                ocrRunBtn.disabled = true;
+                ocrProgress.classList.add('hidden');
+            });
+
+            ocrRunBtn.addEventListener('click', async () => {
+                if (!ocrImageBase64) {
+                    showToast('请先选择图片', 1500);
+                    return;
+                }
+
+                ocrRunBtn.disabled = true;
+                ocrProgress.classList.remove('hidden');
+                ocrProgressFill.style.width = '0%';
+                ocrStatus.textContent = '准备中...';
+
+                try {
+                    const worker = await getOcrWorker('recipe');
+                    ocrStatus.textContent = '识别中...';
+                    const { data: { text } } = await worker.recognize(ocrImageBase64);
+                    console.log('OCR 原始结果：', text);
+
+                    if (!text || !text.trim()) {
+                        showToast('未识别到文字，请换一张更清晰的截图', 2500);
+                        ocrStatus.textContent = '未识别到文字';
+                        ocrRunBtn.disabled = false;
+                        return;
+                    }
+
+                    const result = extractFromText(text);
+                    if (result.name) dishNameInput.value = result.name;
+                    if (result.steps) stepsInput.value = result.steps;
+
+                    if (result.name || result.steps) {
+                        showToast('✨ 识别完成，已填入菜名和步骤，请核对', 2500);
+                        ocrStatus.textContent = '识别完成';
+                        dishNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        stepsInput.value = text.trim();
+                        showToast('已识别文字，请手动整理菜名和步骤', 2500);
+                        ocrStatus.textContent = '识别完成（文字已填入步骤）';
+                    }
+                } catch (err) {
+                    console.error('OCR 失败：', err);
+                    showToast('识别失败，请检查网络或重试', 2500);
+                    ocrStatus.textContent = '识别失败';
+                } finally {
+                    ocrRunBtn.disabled = false;
+                }
+            });
+
+            // ---------- 冰箱 OCR ----------
+            fridgeOcrPickBtn.addEventListener('click', () => fridgeOcrFileInput.click());
+
+            fridgeOcrFileInput.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('image/')) {
+                    showToast('请选择图片文件', 1500);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    fridgeOcrImageBase64 = ev.target.result;
+                    fridgeOcrPreviewImg.src = fridgeOcrImageBase64;
+                    fridgeOcrPreview.classList.remove('hidden');
+                    fridgeOcrRunRow.classList.remove('hidden');
+                    fridgeOcrRunBtn.disabled = false;
+                    fridgeOcrProgress.classList.add('hidden');
+                    fridgeOcrProgressFill.style.width = '0%';
+                    fridgeOcrStatus.textContent = '准备中...';
+                };
+                reader.readAsDataURL(file);
+                fridgeOcrFileInput.value = '';
+            });
+
+            fridgeOcrRemoveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fridgeOcrImageBase64 = null;
+                fridgeOcrPreviewImg.src = '';
+                fridgeOcrPreview.classList.add('hidden');
+                fridgeOcrRunRow.classList.add('hidden');
+                fridgeOcrProgress.classList.add('hidden');
+                fridgeOcrRunBtn.disabled = true;
+            });
+
+            fridgeOcrRunBtn.addEventListener('click', async () => {
+                if (!fridgeOcrImageBase64) {
+                    showToast('请先选择图片', 1500);
+                    return;
+                }
+
+                fridgeOcrRunBtn.disabled = true;
+                fridgeOcrProgress.classList.remove('hidden');
+                fridgeOcrProgressFill.style.width = '0%';
+                fridgeOcrStatus.textContent = '准备中...';
+
+                try {
+                    const worker = await getOcrWorker('fridge');
+                    fridgeOcrStatus.textContent = '识别中...';
+                    const { data: { text } } = await worker.recognize(fridgeOcrImageBase64);
+                    console.log('冰箱 OCR 原始结果：', text);
+
+                    if (!text || !text.trim()) {
+                        showToast('未识别到文字，请换一张更清晰的图片', 2500);
+                        fridgeOcrStatus.textContent = '未识别到文字';
+                        fridgeOcrRunBtn.disabled = false;
+                        return;
+                    }
+
+                    const items = parseFridgeText(text);
+                    if (items.length === 0) {
+                        showToast('未识别到有效食材', 2500);
+                        fridgeOcrStatus.textContent = '未识别到有效食材';
+                        fridgeOcrRunBtn.disabled = false;
+                        return;
+                    }
+
+                    let added = 0;
+                    items.forEach(name => {
+                        const exists = fridgeItems.some(f => f.name === name);
+                        if (!exists) {
+                            fridgeItems.push({
+                                id: Date.now() + Math.random(),
+                                name: name
+                            });
+                            added++;
+                        }
+                    });
+                    persistFridge();
+                    renderFridge();
+
+                    if (added === 0) {
+                        showToast(`识别到 ${items.length} 项，但都已在冰箱里`, 2500);
+                        fridgeOcrStatus.textContent = `识别完成，无新增`;
+                    } else {
+                        showToast(`✅ 识别到 ${items.length} 项，新增 ${added} 项到冰箱`, 2500);
+                        fridgeOcrStatus.textContent = `识别完成，新增 ${added} 项`;
+                    }
+
+                    // 重置识别状态
+                    fridgeOcrImageBase64 = null;
+                    fridgeOcrPreviewImg.src = '';
+                    fridgeOcrPreview.classList.add('hidden');
+                    fridgeOcrRunRow.classList.add('hidden');
+                    fridgeOcrProgress.classList.add('hidden');
+                    fridgeOcrRunBtn.disabled = true;
+                } catch (err) {
+                    console.error('冰箱 OCR 失败：', err);
+                    showToast('识别失败，请检查网络或重试', 2500);
+                    fridgeOcrStatus.textContent = '识别失败';
+                    fridgeOcrRunBtn.disabled = false;
+                }
+            });
+
+            function parseFridgeText(text) {
+                if (!text) return [];
+                let normalized = text
+                    .replace(/\r\n/g, '\n')
+                    .replace(/\r/g, '\n')
+                    .replace(/[，、；;]/g, '\n')
+                    .replace(/\s{2,}/g, '\n')
+                    .replace(/\n+/g, '\n');
+
+                const lines = normalized.split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0);
+
+                const items = [];
+                const seen = new Set();
+                lines.forEach(line => {
+                    let cleaned = line
+                        .replace(/^[\d]+[\.、．)\]\s]+/, '')
+                        .replace(/^[-—–·•*]+\s*/, '')
+                        .replace(/[。！!？?]+$/, '')
+                        .trim();
+                    if (/^(食材|用料|材料|原料|配料|准备|清单|购物|小票|超市|合计|总计|金额|单价|数量|日期|时间|欢迎|谢谢)[：:]?/.test(cleaned)) return;
+                    if (cleaned.length < 2 || cleaned.length > 12) return;
+                    if (/^[\d\.\-\+\s]+$/.test(cleaned)) return;
+                    if (seen.has(cleaned)) return;
+                    seen.add(cleaned);
+                    items.push(cleaned);
+                });
+
+                return items;
+            }
+
+            // ---------- 冰箱渲染 ----------
+            function renderFridge() {
+                const count = fridgeItems.length;
+                fridgeCount.textContent = `共 ${count} 种食材`;
+
+                if (count === 0) {
+                    fridgeList.innerHTML = `
+                        <div class="fridge-empty">
+                            🧊 冰箱空空如也<br>
+                            手动输入或拍照识别添加食材吧～
+                        </div>
+                    `;
+                    fridgeHint.textContent = '';
+                    return;
+                }
+
+                function guessEmoji(name) {
+                    const n = name;
+                    if (/蛋/.test(n)) return '🥚';
+                    if (/奶|芝士|黄油|酸奶/.test(n)) return '🥛';
+                    if (/肉|排骨|鸡|鸭|牛|羊|猪|培根|香肠|火腿/.test(n)) return '🥩';
+                    if (/鱼|虾|蟹|贝|鱿鱼|蛤蜊/.test(n)) return '🐟';
+                    if (/菜|菠菜|生菜|白菜|西兰花|芹菜|韭菜|黄瓜|番茄|西红柿|土豆|萝卜|茄子|青椒|彩椒|洋葱|蘑菇|香菇|木耳|藕|山药|玉米|豆/.test(n)) return '🥬';
+                    if (/苹果|香蕉|橙|橘|葡萄|草莓|蓝莓|柠檬|西瓜|梨|桃|芒果|水果/.test(n)) return '🍎';
+                    if (/米|面|粉|馒头|面包|饺子|馄饨|包子|饼/.test(n)) return '🍚';
+                    if (/油|盐|糖|酱|醋|料酒|生抽|老抽|蚝油|味精|鸡精|胡椒|花椒|八角|桂皮|香叶|蒜|姜|葱|辣椒/.test(n)) return '🧂';
+                    if (/水|饮料|果汁|可乐|雪碧|茶|咖啡/.test(n)) return '🥤';
+                    return '🧊';
+                }
+
+                let html = '';
+                fridgeItems.forEach(item => {
+                    html += `
+                        <div class="fridge-item" data-id="${item.id}">
+                            <span class="fridge-emoji">${guessEmoji(item.name)}</span>
+                            <span class="fridge-name">${escapeHtml(item.name)}</span>
+                            <button class="fridge-del" data-id="${item.id}" title="删除">🗑️</button>
+                        </div>
+                    `;
+                });
+                fridgeList.innerHTML = html;
+
+                fridgeList.querySelectorAll('.fridge-del').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = Number(btn.getAttribute('data-id'));
+                        const item = fridgeItems.find(f => f.id === id);
+                        if (!item) return;
+                        fridgeItems = fridgeItems.filter(f => f.id !== id);
+                        persistFridge();
+                        renderFridge();
+                        showToast(`已移除「${item.name}」`, 1200);
+                    });
+                });
+            }
+
+            function addFridgeItem(name) {
+                const trimmed = (name || '').trim();
+                if (!trimmed) return false;
+                if (fridgeItems.some(f => f.name === trimmed)) {
+                    showToast(`「${trimmed}」已经在冰箱里了`, 1500);
+                    return false;
+                }
+                fridgeItems.push({
+                    id: Date.now() + Math.random(),
+                    name: trimmed
+                });
+                persistFridge();
+                renderFridge();
+                return true;
+            }
+
+            fridgeAddBtn.addEventListener('click', () => {
+                const val = fridgeInput.value;
+                if (!val.trim()) {
+                    showToast('请输入食材名称', 1200);
+                    fridgeInput.focus();
+                    return;
+                }
+                const parts = val
+                    .replace(/[，、；;]/g, ',')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(s => s.length > 0);
+
+                let added = 0;
+                parts.forEach(p => {
+                    if (addFridgeItem(p)) added++;
+                });
+                if (added > 0) {
+                    fridgeInput.value = '';
+                    showToast(`已添加 ${added} 种食材`, 1500);
+                }
+            });
+
+            fridgeInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    fridgeAddBtn.click();
+                }
+            });
+
+            fridgeClearBtn.addEventListener('click', () => {
+                if (fridgeItems.length === 0) {
+                    showToast('冰箱已经是空的', 1200);
+                    return;
+                }
+                showConfirm({
+                    icon: '🧊',
+                    title: '清空冰箱',
+                    message: `确定要清空冰箱里的 ${fridgeItems.length} 种食材吗？`,
+                    okText: '清空',
+                    okColor: '#c0392b',
+                    onOk: () => {
+                        fridgeItems = [];
+                        persistFridge();
+                        renderFridge();
+                        showToast('冰箱已清空', 1200);
+                    }
+                });
+            });
+
+            fridgeBtn.addEventListener('click', () => {
+                ensureFridgeLoaded();
+                renderFridge();
+                fridgeInput.value = '';
+                // 重置 OCR 状态
+                fridgeOcrImageBase64 = null;
+                fridgeOcrPreviewImg.src = '';
+                fridgeOcrPreview.classList.add('hidden');
+                fridgeOcrRunRow.classList.add('hidden');
+                fridgeOcrProgress.classList.add('hidden');
+                fridgeOcrFileInput.value = '';
+                fridgeOcrRunBtn.disabled = true;
+                // 关闭可能开着的分享弹层
+                closeSharePanel();
+                fridgeOverlay.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            });
+
+            fridgeCloseBtn.addEventListener('click', () => {
+                fridgeOverlay.classList.remove('show');
+                document.body.style.overflow = '';
+            });
+
+            fridgeOverlay.addEventListener('click', (e) => {
+                if (e.target === fridgeOverlay) {
+                    fridgeOverlay.classList.remove('show');
+                    document.body.style.overflow = '';
+                }
+            });
+
+            // ---------- Tab 切换 ----------
+            document.querySelectorAll('.smart-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.getAttribute('data-tab');
+                    document.querySelectorAll('.smart-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.smart-panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('panel-' + target).classList.add('active');
+                });
+            });
+
+            // ---------- 表单 ----------
+            function openFormSheet() {
+                formOverlay.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeFormSheet() {
+                formOverlay.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+
+            function resetFormToAddMode() {
+                editingId = null;
+                currentImageBase64 = null;
+                previewImg.src = '';
+                previewImg.classList.add('hidden');
+                previewPlaceholder.style.display = 'flex';
+                dishNameInput.value = '';
+                stepsInput.value = '';
+                pasteInput.value = '';
+                ocrImageBase64 = null;
+                ocrPreviewImg.src = '';
+                ocrPreview.classList.add('hidden');
+                ocrProgress.classList.add('hidden');
+                ocrRunBtn.disabled = true;
+                ocrProgressFill.style.width = '0%';
+                document.querySelectorAll('.smart-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.smart-panel').forEach(p => p.classList.remove('active'));
+                document.querySelector('.smart-tab[data-tab="paste"]').classList.add('active');
+                document.getElementById('panel-paste').classList.add('active');
+
+                formTitle.textContent = '添加新菜';
+                formIcon.textContent = '📝';
+                saveBtn.textContent = '💾 保存这道菜';
+                saveBtn.classList.remove('update-mode');
+                editBanner.classList.add('hidden');
+            }
+
+            function enterEditMode(recipe) {
+                editingId = recipe.id;
+                dishNameInput.value = recipe.name || '';
+                stepsInput.value = recipe.steps || '';
+                if (recipe.image) {
+                    currentImageBase64 = recipe.image;
+                    previewImg.src = recipe.image;
+                    previewImg.classList.remove('hidden');
+                    previewPlaceholder.style.display = 'none';
+                } else {
+                    currentImageBase64 = null;
+                    previewImg.src = '';
+                    previewImg.classList.add('hidden');
+                    previewPlaceholder.style.display = 'flex';
+                }
+                formTitle.textContent = '编辑菜谱';
+                formIcon.textContent = '✏️';
+                saveBtn.textContent = '📌 更新这道菜';
+                saveBtn.classList.add('update-mode');
+                editBanner.classList.remove('hidden');
+                openFormSheet();
+            }
+
+            function cancelEdit() {
+                resetFormToAddMode();
+                showToast('已取消编辑', 1200);
+            }
+
+            function saveOrUpdateRecipe() {
+                const name = dishNameInput.value.trim();
+                const steps = stepsInput.value.trim();
+                if (!name) { showToast('请填写菜名', 1500); dishNameInput.focus(); return; }
+                if (!steps) { showToast('请填写关键步骤', 1500); stepsInput.focus(); return; }
+
+                if (editingId) {
+                    const index = recipes.findIndex(r => r.id === editingId);
+                    if (index !== -1) {
+                        const old = recipes[index];
+                        const updated = {
+                            ...old,
+                            name: name,
+                            steps: steps,
+                            image: currentImageBase64 || null
+                        };
+                        if (!old.categoryManual) updated.category = classifyRecipe(updated);
+                        recipes[index] = updated;
+                        persistRecipes();
+                        renderAll();
+                        showToast('✅ 菜谱已更新', 1500);
+                    }
+                    resetFormToAddMode();
+                    closeFormSheet();
+                } else {
+                    const newRecipe = {
+                        id: Date.now() + Math.floor(Math.random() * 1000),
+                        name: name,
+                        steps: steps,
+                        image: currentImageBase64 || null,
+                        categoryManual: false
+                    };
+                    newRecipe.category = classifyRecipe(newRecipe);
+                    recipes.unshift(newRecipe);
+                    persistRecipes();
+                    renderAll();
+                    showToast('✅ 菜谱已保存', 1500);
+                    resetFormToAddMode();
+                    closeFormSheet();
+                }
+            }
+
+            // ---------- 删除 ----------
+            function deleteRecipe(id) {
+                const recipe = recipes.find(r => r.id === id);
+                if (!recipe) return;
+
+                showConfirm({
+                    icon: '🗑️',
+                    title: '删除菜谱',
+                    message: `确定要删除「${recipe.name}」吗？删除后无法恢复。`,
+                    okText: '删除',
+                    okColor: '#c0392b',
+                    onOk: () => {
+                        if (editingId === id) { resetFormToAddMode(); closeFormSheet(); }
+                        recipes = recipes.filter(r => r.id !== id);
+                        selectedIds.delete(id);
+                        persistRecipes();
+                        renderAll();
+                        showToast('已删除', 1200);
+                    }
+                });
+            }
+
+            function batchDelete() {
+                if (selectedIds.size === 0) return;
+                const n = selectedIds.size;
+                showConfirm({
+                    icon: '🗑️',
+                    title: '批量删除',
+                    message: `确定要删除选中的 ${n} 道菜吗？删除后无法恢复。`,
+                    okText: `删除 ${n} 道`,
+                    okColor: '#c0392b',
+                    onOk: () => {
+                        if (editingId && selectedIds.has(editingId)) { resetFormToAddMode(); closeFormSheet(); }
+                        recipes = recipes.filter(r => !selectedIds.has(r.id));
+                        selectedIds.clear();
+                        persistRecipes();
+                        updateBatchUI();
+                        renderAll();
+                        showToast(`已删除 ${n} 道菜`, 1500);
+                    }
+                });
+            }
+
+            // ---------- 分类纠正 ----------
+            function openCategoryPicker(recipeId) {
+                const recipe = recipes.find(r => r.id === recipeId);
+                if (!recipe) return;
+                pickerRecipeId = recipeId;
+                const currentCat = recipe.category || 'other';
+                pickerSubtitle.innerHTML = `为 <strong>${escapeHtml(recipe.name)}</strong> 选择正确的分类：`;
+                let html = '';
+                PICKABLE_CATEGORIES.forEach(cat => {
+                    const isCurrent = cat.key === currentCat;
+                    html += `
+                        <div class="picker-option ${isCurrent ? 'current' : ''}" data-category="${cat.key}">
+                            <span class="opt-icon">${cat.icon}</span>
+                            <span>${cat.name}</span>
+                            ${isCurrent ? '<span class="opt-check">✓</span>' : ''}
+                        </div>
+                    `;
+                });
+                pickerGrid.innerHTML = html;
+                pickerGrid.querySelectorAll('.picker-option').forEach(opt => {
+                    opt.addEventListener('click', () => {
+                        applyManualCategory(pickerRecipeId, opt.getAttribute('data-category'));
+                        closeCategoryPicker();
+                    });
+                });
+                categoryPickerOverlay.classList.add('show');
+            }
+
+            function closeCategoryPicker() {
+                categoryPickerOverlay.classList.remove('show');
+                pickerRecipeId = null;
+            }
+
+            function applyManualCategory(recipeId, newCat) {
+                const index = recipes.findIndex(r => r.id === recipeId);
+                if (index === -1) return;
+                if (recipes[index].category === newCat) { showToast('分类未改变', 1000); return; }
+                recipes[index].category = newCat;
+                recipes[index].categoryManual = true;
+                persistRecipes();
+                renderAll();
+                showToast(`✅ 已改为「${getCategoryInfo(newCat).name}」`, 1500);
+            }
+
+            // ---------- 分享 ----------
+            async function generateShareLink(mode, withImages) {
+                let shareList = [];
+                if (mode === 'all') shareList = recipes.slice();
+                else if (mode === 'filtered') shareList = getVisibleRecipes().slice();
+                else if (mode === 'selected') shareList = recipes.filter(r => selectedIds.has(r.id));
+
+                if (shareList.length === 0) {
+                    showToast('没有可分享的菜谱', 1500);
+                    return { link: null, isFileProtocol: false };
+                }
+
+                const compressedList = [];
+                for (const r of shareList) {
+                    let img = null;
+                    if (withImages && r.image) {
+                        img = await compressImage(r.image, 200, 0.4);
+                    }
+                    compressedList.push({
+                        n: r.name,
+                        s: r.steps,
+                        i: img,
+                        c: r.category || 'other'
+                    });
+                }
+
+                const json = JSON.stringify(compressedList);
+                let encoded = '';
+                try {
+                    encoded = btoa(unescape(encodeURIComponent(json)));
+                } catch (e) {
+                    encoded = encodeURIComponent(json);
+                }
+
+                const baseUrl = window.location.origin + window.location.pathname;
+                const link = `${baseUrl}#share=${encodeURIComponent(encoded)}`;
+
+                const isFileProtocol = window.location.protocol === 'file:';
+
+                return { link, isFileProtocol, dataLength: encoded.length };
+            }
+
+            async function copyToClipboard(text) {
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(text);
+                        return true;
+                    }
+                } catch (e) {}
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            function openSharePanel() {
+                shareSelectedCount.textContent = selectedIds.size;
+                shareLinkBox.classList.add('hidden');
+                shareLinkBox.textContent = '';
+                shareLinkInfo.classList.add('hidden');
+                shareConfirmBtn.classList.add('hidden');
+                shareCancelBtn.textContent = '取消';
+                shareOverlay.classList.add('show');
+            }
+
+            function closeSharePanel() {
+                shareOverlay.classList.remove('show');
+            }
+
+            let shareLinkCache = null;
+
+            shareOptions.querySelectorAll('.share-option').forEach(opt => {
+                opt.addEventListener('click', async () => {
+                    const mode = opt.getAttribute('data-mode');
+                    if (mode === 'selected' && selectedIds.size === 0) {
+                        showToast('请先在批量管理中勾选要分享的菜', 2000);
+                        return;
+                    }
+                    const withImages = shareWithImages.checked;
+                    showToast('正在生成链接...', 1000);
+                    const result = await generateShareLink(mode, withImages);
+                    if (!result.link) return;
+
+                    shareLinkCache = result.link;
+                    shareLinkBox.textContent = result.link;
+                    shareLinkBox.classList.remove('hidden');
+                    shareConfirmBtn.classList.remove('hidden');
+                    shareCancelBtn.textContent = '关闭';
+                    shareLinkBox.scrollTop = 0;
+
+                    shareLinkInfo.classList.remove('hidden');
+                    if (result.isFileProtocol) {
+                        shareLinkInfo.classList.add('warning');
+                        shareLinkInfo.innerHTML = '⚠️ <strong>当前是本地文件模式</strong><br>生成的链接舍友无法打开，需要先把 HTML 部署到网上（如 GitHub Pages）。';
+                    } else if (result.dataLength > 4000) {
+                        shareLinkInfo.classList.add('warning');
+                        shareLinkInfo.innerHTML = '⚠️ <strong>链接较长</strong><br>部分聊天软件可能会截断。建议关闭「带上菜品图片」重新生成。';
+                    } else {
+                        shareLinkInfo.classList.remove('warning');
+                        shareLinkInfo.innerHTML = '✅ 链接已生成，复制后发给舍友，他们点开就能看到菜谱并点菜。';
+                    }
+                });
+            });
+
+            shareConfirmBtn.addEventListener('click', async () => {
+                if (!shareLinkCache) return;
+                const ok = await copyToClipboard(shareLinkCache);
+                if (ok) showToast('✅ 链接已复制，发给舍友即可', 2500);
+                else showToast('复制失败，请长按链接手动复制', 2500);
+            });
+
+            // ---------- 舍友点菜 ----------
+            function enterGuestMode(shareDataStr) {
+                let list = [];
+                try {
+                    let json = '';
+                    try {
+                        json = decodeURIComponent(escape(atob(decodeURIComponent(shareDataStr))));
+                    } catch (e) {
+                        json = decodeURIComponent(shareDataStr);
+                    }
+                    const arr = JSON.parse(json);
+                    list = arr.map((item, idx) => ({
+                        id: 'g_' + idx,
+                        name: item.n || '',
+                        steps: item.s || '',
+                        image: item.i || null,
+                        category: item.c || 'other'
+                    }));
+                } catch (e) {
+                    console.warn('解析分享数据失败', e);
+                    ownerView.classList.remove('hidden');
+                    guestView.classList.add('hidden');
+                    fabBtn.classList.remove('hidden');
+                    showToast('分享链接无效或已损坏', 2500);
+                    return;
+                }
+
+                ownerView.classList.add('hidden');
+                fabBtn.classList.add('hidden');
+                guestView.classList.remove('hidden');
+                guestCartBar.classList.remove('hidden');
+
+                guestTitle.textContent = '🍽️ 有人喊你点菜啦';
+                guestDesc.textContent = `共 ${list.length} 道菜，勾选想吃的，生成清单发回给TA`;
+
+                let html = '';
+                list.forEach(recipe => {
+                    const imageHtml = recipe.image
+                        ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">`
+                        : `<span>🍽️</span>`;
+                    const catInfo = getCategoryInfo(recipe.category);
+                    html += `
+                        <div class="guest-recipe-item" data-id="${recipe.id}">
+                            <div class="select-checkbox">
+                                <input type="checkbox" data-id="${recipe.id}">
+                            </div>
+                            <div class="recipe-thumb">${imageHtml}</div>
+                            <div class="recipe-info">
+                                <div class="recipe-name">
+                                    ${escapeHtml(recipe.name)}
+                                    <span class="category-tag ${catInfo.cls}" style="cursor:default;">${catInfo.icon} ${catInfo.name}</span>
+                                </div>
+                                <div class="recipe-steps">${escapeHtml(recipe.steps)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                guestRecipeList.innerHTML = html;
+
+                guestRecipeList.querySelectorAll('.guest-recipe-item').forEach(item => {
+                    const id = item.getAttribute('data-id');
+                    const cb = item.querySelector('input[type="checkbox"]');
+
+                    const toggle = () => {
+                        if (guestSelectedIds.has(id)) {
+                            guestSelectedIds.delete(id);
+                            item.classList.remove('picked');
+                            cb.checked = false;
+                        } else {
+                            guestSelectedIds.add(id);
+                            item.classList.add('picked');
+                            cb.checked = true;
+                        }
+                        updateGuestCart();
+                    };
+
+                    item.addEventListener('click', (e) => {
+                        if (e.target === cb) return;
+                        toggle();
+                    });
+                    cb.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        if (cb.checked) {
+                            guestSelectedIds.add(id);
+                            item.classList.add('picked');
+                        } else {
+                            guestSelectedIds.delete(id);
+                            item.classList.remove('picked');
+                        }
+                        updateGuestCart();
+                    });
+                });
+
+                window._guestList = list;
+                updateGuestCart();
+            }
+
+            function updateGuestCart() {
+                guestCartCount.textContent = guestSelectedIds.size;
+                guestSubmitBtn.disabled = guestSelectedIds.size === 0;
+            }
+
+            guestSubmitBtn.addEventListener('click', () => {
+                const list = window._guestList || [];
+                const picked = list.filter(r => guestSelectedIds.has(r.id));
+                if (picked.length === 0) return;
+
+                let text = '🍽️ 我想吃这些菜：\n\n';
+                picked.forEach((r, i) => {
+                    text += `${i + 1}. ${r.name}\n`;
+                });
+                text += `\n—— 共 ${picked.length} 道 ——`;
+
+                copyToClipboard(text).then(ok => {
+                    if (ok) showToast('✅ 点菜清单已复制，粘贴发回给TA吧', 2500);
+                    else alert(text);
+                });
+            });
+
+            // ---------- 渲染菜谱 ----------
+            function renderCategoryBar() {
+                const countMap = {};
+                CATEGORIES.forEach(c => { countMap[c.key] = 0; });
+                recipes.forEach(r => {
+                    const key = r.category || 'other';
+                    countMap[key] = (countMap[key] || 0) + 1;
+                });
+                countMap.all = recipes.length;
+
+                let html = '';
+                CATEGORIES.forEach(cat => {
+                    const isActive = activeCategory === cat.key;
+                    const count = countMap[cat.key] || 0;
+                    html += `
+                        <div class="category-chip ${isActive ? 'active' : ''}" data-category="${cat.key}">
+                            <span>${cat.icon}</span>
+                            <span>${cat.name}</span>
+                            <span class="chip-count">${count}</span>
+                        </div>
+                    `;
+                });
+                categoryBar.innerHTML = html;
+
+                categoryBar.querySelectorAll('.category-chip').forEach(chip => {
+                    chip.addEventListener('click', () => {
+                        activeCategory = chip.getAttribute('data-category');
+                        renderAll();
+                    });
+                });
+            }
+
+            function updateBatchUI() {
+                if (manageMode) {
+                    selectAllBtn.classList.remove('hidden');
+                    batchDelBtn.classList.remove('hidden');
+                    selectedCount.textContent = selectedIds.size;
+                    batchDelBtn.disabled = selectedIds.size === 0;
+                    const visibleRecipes = getVisibleRecipes();
+                    if (visibleRecipes.length > 0 && visibleRecipes.every(r => selectedIds.has(r.id))) {
+                        selectAllBtn.textContent = '取消全选';
+                    } else {
+                        selectAllBtn.textContent = '全选';
+                    }
+                } else {
+                    selectAllBtn.classList.add('hidden');
+                    batchDelBtn.classList.add('hidden');
+                    selectedIds.clear();
+                }
+            }
+
+            function getVisibleRecipes() {
+                if (activeCategory === 'all') return recipes;
+                return recipes.filter(r => (r.category || 'other') === activeCategory);
+            }
+
+            function renderRecipeList() {
+                const visible = getVisibleRecipes();
+
+                if (visible.length === 0) {
+                    recipeListEl.innerHTML = `
+                        <div class="empty-message">
+                            <span>🥣</span>
+                            <div>${activeCategory === 'all' ? '还没有菜谱' : '这个分类下还没有菜谱'}</div>
+                            <div class="empty-sub">${activeCategory === 'all' ? '点右下角「＋」添加第一道菜吧～' : '换个分类看看，或点「＋」添加'}</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                visible.forEach(recipe => {
+                    const imageHtml = recipe.image
+                        ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">`
+                        : `<span>🍽️</span>`;
+
+                    const catInfo = getCategoryInfo(recipe.category || 'other');
+                    const catTag = `<span class="category-tag ${catInfo.cls}" data-cat-id="${recipe.id}" title="点击修改分类">${catInfo.icon} ${catInfo.name}</span>`;
+
+                    const isSelected = selectedIds.has(recipe.id);
+
+                    const checkboxHtml = manageMode
+                        ? `<div class="select-checkbox">
+                              <input type="checkbox" data-id="${recipe.id}" ${isSelected ? 'checked' : ''}>
+                           </div>`
+                        : '';
+
+                    const actionButtons = manageMode
+                        ? ''
+                        : `<div class="action-buttons">
+                              <button class="edit-btn" data-id="${recipe.id}" title="编辑">✏️</button>
+                              <button class="delete-btn" data-id="${recipe.id}" title="删除">🗑️</button>
+                           </div>`;
+
+                    html += `
+                        <div class="recipe-item ${isSelected ? 'selected' : ''}" data-id="${recipe.id}">
+                            ${checkboxHtml}
+                            <div class="recipe-thumb">${imageHtml}</div>
+                            <div class="recipe-info">
+                                <div class="recipe-name">
+                                    ${escapeHtml(recipe.name)}
+                                    ${catTag}
+                                    ${actionButtons}
+                                </div>
+                                <div class="recipe-steps">${escapeHtml(recipe.steps)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                recipeListEl.innerHTML = html;
+
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = Number(btn.getAttribute('data-id'));
+                        const recipe = recipes.find(r => r.id === id);
+                        if (recipe) enterEditMode(recipe);
+                    });
+                });
+
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = Number(btn.getAttribute('data-id'));
+                        deleteRecipe(id);
+                    });
+                });
+
+                document.querySelectorAll('.category-tag').forEach(tag => {
+                    tag.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = Number(tag.getAttribute('data-cat-id'));
+                        openCategoryPicker(id);
+                    });
+                });
+
+                document.querySelectorAll('.select-checkbox input').forEach(cb => {
+                    cb.addEventListener('change', (e) => {
+                        const id = Number(cb.getAttribute('data-id'));
+                        if (cb.checked) selectedIds.add(id);
+                        else selectedIds.delete(id);
+                        const card = cb.closest('.recipe-item');
+                        if (card) card.classList.toggle('selected', cb.checked);
+                        updateBatchUI();
+                    });
+                });
+            }
+
+            function renderAll() {
+                recipeCountEl.textContent = recipes.length + ' 道';
+                renderCategoryBar();
+                renderRecipeList();
+                updateBatchUI();
+            }
+
+            // ---------- 事件绑定 ----------
+            headerAddBtn.addEventListener('click', () => {
+                resetFormToAddMode();
+                openFormSheet();
+            });
+            fabBtn.addEventListener('click', () => {
+                resetFormToAddMode();
+                openFormSheet();
+            });
+            sheetCloseBtn.addEventListener('click', () => {
+                resetFormToAddMode();
+                closeFormSheet();
+            });
+            formOverlay.addEventListener('click', (e) => {
+                if (e.target === formOverlay) {
+                    resetFormToAddMode();
+                    closeFormSheet();
+                }
+            });
+
+            extractBtn.addEventListener('click', performExtract);
+            clearPasteBtn.addEventListener('click', () => { pasteInput.value = ''; pasteInput.focus(); });
+            pasteInput.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); performExtract(); }
+            });
+
+            cancelEditBtn.addEventListener('click', cancelEdit);
+            saveBtn.addEventListener('click', saveOrUpdateRecipe);
+            dishNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+
+            imageInput.addEventListener('change', function(e) {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('image/')) { showToast('请选择图片文件', 1500); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    currentImageBase64 = ev.target.result;
+                    previewImg.src = currentImageBase64;
+                    previewImg.classList.remove('hidden');
+                    previewPlaceholder.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+                imageInput.value = '';
+            });
+
+            previewContainer.addEventListener('click', () => imageInput.click());
+            previewContainer.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                if (currentImageBase64) {
+                    currentImageBase64 = null;
+                    previewImg.src = '';
+                    previewImg.classList.add('hidden');
+                    previewPlaceholder.style.display = 'flex';
+                    showToast('已移除图片', 1000);
+                }
+            });
+
+            pickerCancelBtn.addEventListener('click', closeCategoryPicker);
+            categoryPickerOverlay.addEventListener('click', (e) => {
+                if (e.target === categoryPickerOverlay) closeCategoryPicker();
+            });
+
+            manageModeToggle.addEventListener('change', (e) => {
+                manageMode = e.target.checked;
+                if (!manageMode) selectedIds.clear();
+                updateBatchUI();
+                renderRecipeList();
+            });
+
+            selectAllBtn.addEventListener('click', () => {
+                const visible = getVisibleRecipes();
+                const allSelected = visible.length > 0 && visible.every(r => selectedIds.has(r.id));
+                if (allSelected) visible.forEach(r => selectedIds.delete(r.id));
+                else visible.forEach(r => selectedIds.add(r.id));
+                updateBatchUI();
+                renderRecipeList();
+            });
+
+            batchDelBtn.addEventListener('click', batchDelete);
+            shareBtn.addEventListener('click', openSharePanel);
+            shareCancelBtn.addEventListener('click', closeSharePanel);
+            shareOverlay.addEventListener('click', (e) => {
+                if (e.target === shareOverlay) closeSharePanel();
+            });
+
+            // ---------- 初始化 ----------
+            function init() {
+                if (isGuestMode) {
+                    enterGuestMode(shareDataStr);
+                } else {
+                    loadRecipes();
+                    ensureFridgeLoaded();
+                    resetFormToAddMode();
+                    renderAll();
+                }
+            }
+
+            init();
+        })();
+    </script>
+</body>
+</html>
