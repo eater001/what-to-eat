@@ -236,6 +236,22 @@
 
         .share-btn:active { background: #f8e7cf; }
 
+        .backup-btn {
+            background: #eef3f9;
+            color: #3d6a9e;
+            border: 1px solid #cfe0f0;
+            border-radius: 40px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .backup-btn:active { background: #dfe9f3; }
+
         .empty-message {
             background: #fdfaf7;
             border-radius: 24px;
@@ -474,7 +490,6 @@
 
         .hidden { display: none !important; }
 
-        /* 冰箱面板 */
         .fridge-intro {
             background: #e8f5e5;
             border: 1px solid #c6e3be;
@@ -709,7 +724,6 @@
             text-align: center;
         }
 
-        /* 智能输入区 */
         .smart-zone {
             background: #f0f7ff;
             border: 1.5px dashed #a8c8e8;
@@ -1503,7 +1517,6 @@
 
         .toast.show { opacity: 1; }
 
-        /* 专属冰箱 overlay 的 z-index，避免和分享弹层冲突 */
         #fridgeOverlay { z-index: 1050; }
     </style>
 </head>
@@ -1545,7 +1558,10 @@
                     <button class="batch-del-btn hidden" id="batchDelBtn" disabled>
                         🗑️ 删除 (<span id="selectedCount">0</span>)
                     </button>
+                    <button class="backup-btn" id="exportBtn">📦 导出</button>
+                    <button class="backup-btn" id="importBtn">📥 导入</button>
                     <button class="share-btn" id="shareBtn">📤 分享点菜</button>
+                    <input type="file" id="importFileInput" accept=".json" style="display:none;">
                 </div>
             </div>
 
@@ -1565,7 +1581,6 @@
 
     <button class="fab" id="fabBtn" title="添加新菜">＋</button>
 
-    <!-- 添加/编辑菜谱弹层 -->
     <div class="overlay" id="formOverlay">
         <div class="sheet" id="formSheet">
             <div class="sheet-handle"></div>
@@ -1660,7 +1675,6 @@
         </div>
     </div>
 
-    <!-- 冰箱弹层 -->
     <div class="overlay" id="fridgeOverlay">
         <div class="sheet" id="fridgeSheet">
             <div class="sheet-handle"></div>
@@ -1713,7 +1727,6 @@
         </div>
     </div>
 
-    <!-- 分类选择弹层 -->
     <div class="category-picker-overlay" id="categoryPickerOverlay">
         <div class="category-picker">
             <div class="picker-title">🏷️ 手动纠正分类</div>
@@ -1725,7 +1738,6 @@
         </div>
     </div>
 
-    <!-- 分享弹层 -->
     <div class="overlay" id="shareOverlay">
         <div class="share-panel">
             <div class="share-title">📤 分享菜谱给舍友</div>
@@ -1824,7 +1836,6 @@
             let ocrImageBase64 = null;
             let ocrWorker = null;
 
-            // 冰箱
             let fridgeItems = [];
             let fridgeLoaded = false;
             let fridgeOcrImageBase64 = null;
@@ -1879,6 +1890,10 @@
             const headerAddBtn = document.getElementById('headerAddBtn');
             const formOverlay = document.getElementById('formOverlay');
             const sheetCloseBtn = document.getElementById('sheetCloseBtn');
+
+            const exportBtn = document.getElementById('exportBtn');
+            const importBtn = document.getElementById('importBtn');
+            const importFileInput = document.getElementById('importFileInput');
 
             const fridgeBtn = document.getElementById('fridgeBtn');
             const fridgeOverlay = document.getElementById('fridgeOverlay');
@@ -2287,7 +2302,7 @@
                 }
             }
 
-            // ---------- OCR 通用（带 progressTarget 参数） ----------
+            // ---------- OCR 通用 ----------
             async function getOcrWorker(progressTarget) {
                 if (ocrWorker) return ocrWorker;
                 showToast('正在加载识别引擎（首次约需10秒）...', 3000);
@@ -2484,7 +2499,6 @@
                         fridgeOcrStatus.textContent = `识别完成，新增 ${added} 项`;
                     }
 
-                    // 重置识别状态
                     fridgeOcrImageBase64 = null;
                     fridgeOcrPreviewImg.src = '';
                     fridgeOcrPreview.classList.add('hidden');
@@ -2657,7 +2671,6 @@
                 ensureFridgeLoaded();
                 renderFridge();
                 fridgeInput.value = '';
-                // 重置 OCR 状态
                 fridgeOcrImageBase64 = null;
                 fridgeOcrPreviewImg.src = '';
                 fridgeOcrPreview.classList.add('hidden');
@@ -2665,7 +2678,6 @@
                 fridgeOcrProgress.classList.add('hidden');
                 fridgeOcrFileInput.value = '';
                 fridgeOcrRunBtn.disabled = true;
-                // 关闭可能开着的分享弹层
                 closeSharePanel();
                 fridgeOverlay.classList.add('show');
                 document.body.style.overflow = 'hidden';
@@ -2801,6 +2813,111 @@
                     closeFormSheet();
                 }
             }
+
+            // ---------- 导出 / 导入备份 ----------
+            function exportBackup() {
+                if (recipes.length === 0 && fridgeItems.length === 0) {
+                    showToast('还没有数据可以导出', 1500);
+                    return;
+                }
+
+                const backup = {
+                    version: 1,
+                    exportAt: new Date().toISOString(),
+                    recipes: recipes,
+                    fridgeItems: fridgeItems
+                };
+
+                const json = JSON.stringify(backup, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const date = new Date();
+                const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+                const filename = `今天吃啥-备份-${dateStr}.json`;
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast(`✅ 已导出 ${recipes.length} 道菜谱、${fridgeItems.length} 种食材`, 2200);
+            }
+
+            function importBackup(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+
+                        let importedRecipes = [];
+                        let importedFridge = [];
+
+                        if (Array.isArray(data)) {
+                            importedRecipes = data;
+                        } else if (data && Array.isArray(data.recipes)) {
+                            importedRecipes = data.recipes;
+                            importedFridge = Array.isArray(data.fridgeItems) ? data.fridgeItems : [];
+                        } else {
+                            showToast('文件格式不对，无法导入', 2000);
+                            return;
+                        }
+
+                        if (importedRecipes.length === 0 && importedFridge.length === 0) {
+                            showToast('文件里没有可导入的数据', 2000);
+                            return;
+                        }
+
+                        showConfirm({
+                            icon: '📥',
+                            title: '导入备份',
+                            message: `将导入 ${importedRecipes.length} 道菜谱、${importedFridge.length} 种冰箱食材。\n\n当前已有 ${recipes.length} 道菜谱，导入后会用备份数据替换当前数据，确定吗？`,
+                            okText: '确认导入',
+                            okColor: '#3d6a9e',
+                            onOk: () => {
+                                recipes = importedRecipes.map(r => ({
+                                    id: r.id || Date.now() + Math.random(),
+                                    name: r.name || '',
+                                    steps: r.steps || '',
+                                    image: r.image || null,
+                                    category: r.category || classifyRecipe(r),
+                                    categoryManual: r.categoryManual || false
+                                }));
+
+                                if (importedFridge.length > 0) {
+                                    fridgeItems = importedFridge.map(item => ({
+                                        id: item.id || Date.now() + Math.random(),
+                                        name: item.name || ''
+                                    })).filter(item => item.name.trim());
+                                    fridgeLoaded = true;
+                                }
+
+                                persistRecipes();
+                                persistFridge();
+                                renderAll();
+                                renderFridge();
+                                showToast(`✅ 已导入 ${recipes.length} 道菜谱`, 2000);
+                            }
+                        });
+                    } catch (err) {
+                        console.error('导入失败：', err);
+                        showToast('文件解析失败，请确认是备份文件', 2000);
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            exportBtn.addEventListener('click', exportBackup);
+            importBtn.addEventListener('click', () => importFileInput.click());
+            importFileInput.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                importBackup(file);
+                importFileInput.value = '';
+            });
 
             // ---------- 删除 ----------
             function deleteRecipe(id) {
@@ -2991,7 +3108,7 @@
                     shareLinkInfo.classList.remove('hidden');
                     if (result.isFileProtocol) {
                         shareLinkInfo.classList.add('warning');
-                        shareLinkInfo.innerHTML = '⚠️ <strong>当前是本地文件模式</strong><br>生成的链接舍友无法打开，需要先把 HTML 部署到网上（如 GitHub Pages）。';
+                        shareLinkInfo.innerHTML = '⚠️ <strong>当前是本地文件模式</strong><br>生成的链接舍友无法打开，需要先把 HTML 部署到网上。';
                     } else if (result.dataLength > 4000) {
                         shareLinkInfo.classList.add('warning');
                         shareLinkInfo.innerHTML = '⚠️ <strong>链接较长</strong><br>部分聊天软件可能会截断。建议关闭「带上菜品图片」重新生成。';
