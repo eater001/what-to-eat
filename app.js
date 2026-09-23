@@ -1579,6 +1579,7 @@ importFileInput.addEventListener('change', (e) => {
 const diceBtn = document.getElementById('diceBtn');
 
 diceBtn.addEventListener('click', () => {
+    console.log('摇一摇被点击了');
     const visible = getVisibleRecipes();
     if (visible.length === 0) {
         showToast('当前分类下没有菜谱', 1500);
