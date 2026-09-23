@@ -129,6 +129,7 @@ const confirmTitle = document.getElementById('confirmTitle');
 const confirmMessage = document.getElementById('confirmMessage');
 const confirmCancelBtn = document.getElementById('confirmCancelBtn');
 const confirmOkBtn = document.getElementById('confirmOkBtn');
+const diceBtn = document.getElementById('diceBtn');
 
 // ============================================
 // 工具函数
@@ -180,6 +181,7 @@ function showConfirm(options) {
     confirmMessage.textContent = options.message || '';
     confirmOkBtn.textContent = options.okText || '确定';
     confirmOkBtn.style.background = options.okColor || '#c0392b';
+    confirmCancelBtn.textContent = options.cancelText || '取消';
     confirmCallback = options.onOk || null;
     confirmOverlay.classList.add('show');
 }
@@ -628,9 +630,7 @@ function parseFridgeText(text) {
         seen.add(cleaned); items.push(cleaned);
     });
     return items;
-}
-
-// ============================================
+}// ============================================
 // Tab 切换
 // ============================================
 document.querySelectorAll('.smart-tab').forEach(tab => {
@@ -872,6 +872,37 @@ async function applyManualCategory(recipeId, newCat) {
         console.error('分类修改失败：', err);
         showToast('修改失败，请重试', 2000);
     }
+}
+
+// ============================================
+// 摇一摇选菜
+// ============================================
+diceBtn.addEventListener('click', () => {
+    const visible = getVisibleRecipes();
+    if (visible.length === 0) {
+        showToast('当前分类下没有菜谱', 1500);
+        return;
+    }
+    const pick = visible[Math.floor(Math.random() * visible.length)];
+    showDiceResult(pick);
+});
+
+function showDiceResult(recipe) {
+    const catInfo = getCategoryInfo(recipe.category || 'other');
+    confirmIcon.textContent = '🎲';
+    confirmTitle.textContent = '今天就吃这个！';
+    confirmMessage.innerHTML = `
+        <div style="font-size:22px;font-weight:700;color:#3e2c1b;margin-bottom:8px;">${escapeHtml(recipe.name)}</div>
+        <span style="font-size:12px;color:#7d633d;">${catInfo.icon} ${catInfo.name}</span>
+        <div style="font-size:13px;color:#6b5846;line-height:1.5;margin-top:12px;text-align:left;background:#faf5f0;padding:12px;border-radius:12px;max-height:180px;overflow-y:auto;white-space:pre-wrap;">${escapeHtml(recipe.steps)}</div>
+    `;
+    confirmOkBtn.textContent = '🎲 再摇一次';
+    confirmOkBtn.style.background = '#7d633d';
+    confirmCancelBtn.textContent = '就吃这道';
+    confirmCallback = () => {
+        diceBtn.click();
+    };
+    confirmOverlay.classList.add('show');
 }
 
 // ============================================
@@ -1573,39 +1604,7 @@ importFileInput.addEventListener('change', (e) => {
     importBackup(file);
     importFileInput.value = '';
 });
-// ============================================
-// 摇一摇选菜
-// ============================================
-const diceBtn = document.getElementById('diceBtn');
 
-diceBtn.addEventListener('click', () => {
-    console.log('摇一摇被点击了');
-    const visible = getVisibleRecipes();
-    if (visible.length === 0) {
-        showToast('当前分类下没有菜谱', 1500);
-        return;
-    }
-    const pick = visible[Math.floor(Math.random() * visible.length)];
-    showDiceResult(pick);
-});
-
-function showDiceResult(recipe) {
-    const catInfo = getCategoryInfo(recipe.category || 'other');
-    confirmIcon.textContent = '🎲';
-    confirmTitle.textContent = '今天就吃这个！';
-    confirmMessage.innerHTML = `
-        <div style="font-size:22px;font-weight:700;color:#3e2c1b;margin-bottom:8px;">${escapeHtml(recipe.name)}</div>
-        <span style="font-size:12px;color:#7d633d;">${catInfo.icon} ${catInfo.name}</span>
-        <div style="font-size:13px;color:#6b5846;line-height:1.5;margin-top:12px;text-align:left;background:#faf5f0;padding:12px;border-radius:12px;max-height:180px;overflow-y:auto;white-space:pre-wrap;">${escapeHtml(recipe.steps)}</div>
-    `;
-    confirmOkBtn.textContent = '🎲 再摇一次';
-    confirmOkBtn.style.background = '#7d633d';
-    confirmCancelBtn.textContent = '就吃这道';
-    confirmCallback = () => {
-        diceBtn.click();
-    };
-    confirmOverlay.classList.add('show');
-}
 // ============================================
 // 初始化
 // ============================================
