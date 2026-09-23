@@ -646,7 +646,8 @@ function parseFridgeText(text) {
         seen.add(cleaned); items.push(cleaned);
     });
     return items;
-}// ============================================
+}
+// ============================================
 // Tab 切换
 // ============================================
 document.querySelectorAll('.smart-tab').forEach(tab => {
