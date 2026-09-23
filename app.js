@@ -406,13 +406,15 @@ async function showApp() {
     renderFridge();
 }
 
-logoutBtn.addEventListener('click', async () => {
-    showConfirm({
-        icon: '👤', title: '退出登录', message: '确定要退出吗？',
-        okText: '退出', okColor: '#c0392b',
-        onOk: async () => { await auth.signOut(); showToast('已退出登录', 1200); }
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        showConfirm({
+            icon: '👤', title: '退出登录', message: '确定要退出吗？',
+            okText: '退出', okColor: '#c0392b',
+            onOk: async () => { await auth.signOut(); showToast('已退出登录', 1200); }
+        });
     });
-});
+}
 
 // ============================================
 // 数据加载
