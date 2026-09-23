@@ -199,6 +199,33 @@
         .guest-recipe-item .recipe-info { flex: 1; min-width: 0; }
         .guest-recipe-item .recipe-name { font-size: 17px; font-weight: 600; color: #2b1f14; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .guest-recipe-item .recipe-steps { font-size: 13px; color: #6b5846; line-height: 1.45; background: #faf5f0; padding: 8px 10px; border-radius: 14px; white-space: pre-wrap; max-height: 70px; overflow-y: auto; border: 1px solid #f0e4d9; }
+        .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 24px 0 16px;
+}
+.page-btn {
+    background: #3f2e1e;
+    color: #f5ede4;
+    border: none;
+    border-radius: 40px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.page-btn:disabled {
+    background: #d9cfc4;
+    color: #a89b8c;
+    cursor: not-allowed;
+}
+.page-info {
+    font-size: 14px;
+    color: #6b5846;
+    font-weight: 500;
+}
         .confirm-overlay { position: fixed; inset: 0; background: rgba(30, 20, 10, 0.5); z-index: 1500; display: flex; align-items: center; justify-content: center; padding: 24px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
         .confirm-overlay.show { opacity: 1; pointer-events: auto; }
         .confirm-box { background: #ffffff; border-radius: 26px; width: 100%; max-width: 340px; padding: 24px 22px 20px; text-align: center; }
