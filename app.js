@@ -668,3 +668,7 @@ function parseFridgeText(text) {
 .fridge-status.fresh { color: #3e7d34; }
 .fridge-status.soon { color: #b06a1e; font-weight: 600; }
 .fridge-status.expired { color: #c0392b; font-weight: 600; }
+.fridge-dates {
+    font-size: 11px;
+    color: #a89b8c;
+}
