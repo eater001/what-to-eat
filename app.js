@@ -36,6 +36,16 @@ let confirmCallback = null;
 let isGuestMode = false;
 let guestList = [];
 
+// 做菜日历
+let cookLogs = [];
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth() + 1;
+let calSelectedDate = null;
+
+// 个人主页
+let profile = null;
+let weightRecords = [];
+
 // DOM 缓存
 const authScreen = document.getElementById('authScreen');
 const appContainer = document.getElementById('appContainer');
@@ -133,6 +143,39 @@ const confirmCancelBtn = document.getElementById('confirmCancelBtn');
 const confirmOkBtn = document.getElementById('confirmOkBtn');
 const diceBtn = document.getElementById('diceBtn');
 
+// 做菜日历 DOM
+const calBtn = document.getElementById('calBtn');
+const calView = document.getElementById('calView');
+const calBackBtn = document.getElementById('calBackBtn');
+const calPrevMonth = document.getElementById('calPrevMonth');
+const calNextMonth = document.getElementById('calNextMonth');
+const calMonthLabel = document.getElementById('calMonthLabel');
+const calGrid = document.getElementById('calGrid');
+const calDetailTitle = document.getElementById('calDetailTitle');
+const calDetailList = document.getElementById('calDetailList');
+const quickRecipeSelect = document.getElementById('quickRecipeSelect');
+const quickAddBtn = document.getElementById('quickAddBtn');
+
+// 个人主页 DOM
+const profileBtn = document.getElementById('profileBtn');
+const profileView = document.getElementById('profileView');
+const profileBackBtn = document.getElementById('profileBackBtn');
+const avatarImg = document.getElementById('avatarImg');
+const avatarEditBtn = document.getElementById('avatarEditBtn');
+const avatarInput = document.getElementById('avatarInput');
+const avatarName = document.getElementById('avatarName');
+const avatarId = document.getElementById('avatarId');
+const statHeight = document.getElementById('statHeight');
+const statWeight = document.getElementById('statWeight');
+const statAge = document.getElementById('statAge');
+const profileGenderBtns = document.querySelectorAll('.gender-btn');
+const profileHeightInput = document.getElementById('profileHeightInput');
+const profileWeightInput = document.getElementById('profileWeightInput');
+const profileAgeInput = document.getElementById('profileAgeInput');
+const profileSaveBtn = document.getElementById('profileSaveBtn');
+const addWeightBtn = document.getElementById('addWeightBtn');
+const weightList = document.getElementById('weightList');
+
 // ============================================
 // 工具函数
 // ============================================
@@ -172,6 +215,46 @@ function compressImage(base64, maxSize = 600, quality = 0.6) {
         img.onerror = () => resolve(null);
         img.src = base64;
     });
+}
+
+// 菜名 → emoji
+function getDishEmoji(name) {
+    const n = name || '';
+    if (/番茄|西红柿/.test(n) && /蛋/.test(n)) return '🍅🥚';
+    if (/番茄|西红柿/.test(n)) return '🍅';
+    if (/蛋/.test(n)) return '🥚';
+    if (/排骨/.test(n)) return '🍖';
+    if (/鸡翅|鸡腿/.test(n)) return '🍗';
+    if (/鸡肉|鸡胸/.test(n)) return '🐔';
+    if (/牛肉/.test(n)) return '🥩';
+    if (/猪肉|五花肉|里脊/.test(n)) return '🥓';
+    if (/鱼/.test(n)) return '🐟';
+    if (/虾/.test(n)) return '🦐';
+    if (/蟹/.test(n)) return '🦀';
+    if (/西兰花/.test(n)) return '🥦';
+    if (/白菜|生菜|菠菜|青菜/.test(n)) return '🥬';
+    if (/黄瓜/.test(n)) return '🥒';
+    if (/胡萝卜|萝卜/.test(n)) return '🥕';
+    if (/土豆/.test(n)) return '🥔';
+    if (/茄子/.test(n)) return '🍆';
+    if (/玉米/.test(n)) return '🌽';
+    if (/蘑菇|香菇/.test(n)) return '🍄';
+    if (/豆腐/.test(n)) return '🧈';
+    if (/米饭|炒饭|盖饭/.test(n)) return '🍚';
+    if (/面条|拉面|炒面/.test(n)) return '🍜';
+    if (/粥/.test(n)) return '🥣';
+    if (/汤|羹/.test(n)) return '🍲';
+    if (/沙拉|凉拌|凉菜/.test(n)) return '🥗';
+    if (/蛋糕|甜品/.test(n)) return '🍰';
+    if (/面包|吐司/.test(n)) return '🍞';
+    if (/披萨/.test(n)) return '🍕';
+    if (/汉堡/.test(n)) return '🍔';
+    if (/饺子|包子|馄饨/.test(n)) return '🥟';
+    if (/辣椒|辣子/.test(n)) return '🌶️';
+    if (/蒜/.test(n)) return '🧄';
+    if (/南瓜/.test(n)) return '🎃';
+    if (/山药|藕/.test(n)) return '🥔';
+    return '🍽️';
 }
 
 // ============================================
@@ -316,6 +399,8 @@ async function showApp() {
     ownerView.classList.remove('hidden');
     guestView.classList.add('hidden');
     guestCartBar.classList.add('hidden');
+    calView.classList.add('hidden');
+    profileView.classList.add('hidden');
     await loadAllData();
     renderAll();
     renderFridge();
@@ -353,11 +438,41 @@ async function loadAllData() {
         fridgeItems = fridgeSnapshot.docs.map(doc => {
             const d = doc.data();
             return {
-                id: doc.id,
-                name: d.name || '',
+                id: doc.id, name: d.name || '',
                 purchaseDate: d.purchaseDate || null,
                 shelfLife: d.shelfLife || null
             };
+        });
+
+        // 加载做菜记录
+        const cookSnapshot = await db.collection('cook_logs')
+            .where('userId', '==', currentUser.uid)
+            .orderBy('cookedAt', 'desc').get();
+        cookLogs = cookSnapshot.docs.map(doc => {
+            const d = doc.data();
+            return {
+                id: doc.id, recipeId: d.recipeId || null,
+                recipeName: d.recipeName || '',
+                cookedAt: d.cookedAt || 0,
+                note: d.note || ''
+            };
+        });
+
+        // 加载个人资料
+        const profileDoc = await db.collection('profiles').doc(currentUser.uid).get();
+        if (profileDoc.exists) {
+            profile = profileDoc.data();
+        } else {
+            profile = { name: '我', gender: 'female', height: 165, weight: 55, age: 25, avatar: null };
+        }
+
+        // 加载体重记录
+        const weightSnapshot = await db.collection('weight_records')
+            .where('userId', '==', currentUser.uid)
+            .orderBy('date', 'desc').limit(30).get();
+        weightRecords = weightSnapshot.docs.map(doc => {
+            const d = doc.data();
+            return { id: doc.id, date: d.date, weight: d.weight };
         });
     } catch (err) {
         console.error('加载数据失败：', err);
@@ -646,8 +761,7 @@ function parseFridgeText(text) {
         seen.add(cleaned); items.push(cleaned);
     });
     return items;
-}
-// ============================================
+}// ============================================
 // Tab 切换
 // ============================================
 document.querySelectorAll('.smart-tab').forEach(tab => {
@@ -1063,7 +1177,7 @@ function enterGuestMode(shareDataStr) {
     list.forEach(recipe => {
         const imageHtml = recipe.image
             ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">`
-            : `<span>🍽️</span>`;
+            : `<span style="font-size:32px;">${getDishEmoji(recipe.name)}</span>`;
         const catInfo = getCategoryInfo(recipe.category);
         html += `
             <div class="guest-recipe-item" data-id="${recipe.id}">
@@ -1211,7 +1325,7 @@ function renderRecipeList() {
     pageItems.forEach(recipe => {
         const imageHtml = recipe.image
             ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">`
-            : `<span>🍽️</span>`;
+            : `<span style="font-size:32px;">${getDishEmoji(recipe.name)}</span>`;
         const catInfo = getCategoryInfo(recipe.category || 'other');
         const catTag = `<span class="category-tag ${catInfo.cls}" data-cat-id="${recipe.id}" title="点击修改分类">${catInfo.icon} ${catInfo.name}</span>`;
         const isSelected = selectedIds.has(recipe.id);
@@ -1307,7 +1421,7 @@ function renderAll() {
 }
 
 // ============================================
-// 冰箱渲染（带买/到日期）
+// 冰箱渲染
 // ============================================
 function guessEmoji(name) {
     const n = name;
@@ -1489,6 +1603,310 @@ fridgeOverlay.addEventListener('click', (e) => {
         document.body.style.overflow = '';
     }
 });
+
+// ============================================
+// 做菜日历
+// ============================================
+calBtn.addEventListener('click', () => {
+    ownerView.classList.add('hidden');
+    guestView.classList.add('hidden');
+    profileView.classList.add('hidden');
+    calView.classList.remove('hidden');
+    fabBtn.classList.add('hidden');
+    renderCalendar();
+    renderCalDetail();
+    renderQuickSelect();
+});
+
+calBackBtn.addEventListener('click', () => {
+    calView.classList.add('hidden');
+    ownerView.classList.remove('hidden');
+    fabBtn.classList.remove('hidden');
+});
+
+calPrevMonth.addEventListener('click', () => {
+    calMonth--;
+    if (calMonth < 1) { calMonth = 12; calYear--; }
+    renderCalendar();
+});
+
+calNextMonth.addEventListener('click', () => {
+    calMonth++;
+    if (calMonth > 12) { calMonth = 1; calYear++; }
+    renderCalendar();
+});
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function dateKey(y, m, d) { return `${y}-${pad(m)}-${pad(d)}`; }
+
+function renderCalendar() {
+    calMonthLabel.textContent = `${calYear}年${calMonth}月`;
+    const firstDay = new Date(calYear, calMonth - 1, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+    const today = new Date();
+    const todayKey = dateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+    const grouped = {};
+    cookLogs.forEach(log => {
+        const d = new Date(log.cookedAt);
+        const key = dateKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(log);
+    });
+
+    let html = '';
+    for (let i = 0; i < firstDay; i++) {
+        html += `<div class="cal-cell empty"></div>`;
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+        const key = dateKey(calYear, calMonth, d);
+        const dishes = grouped[key] || [];
+        const hasDish = dishes.length > 0;
+        const isToday = key === todayKey;
+        const isSelected = key === calSelectedDate;
+
+        let classes = 'cal-cell';
+        if (hasDish) classes += ' has-dish';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+
+        let dotsHtml = '';
+        if (hasDish) {
+            dotsHtml = '<div class="dots">';
+            for (let i = 0; i < Math.min(dishes.length, 3); i++) {
+                dotsHtml += '<div class="dot"></div>';
+            }
+            dotsHtml += '</div>';
+        }
+
+        html += `<div class="${classes}" data-date="${key}">${d}${dotsHtml}</div>`;
+    }
+    calGrid.innerHTML = html;
+
+    calGrid.querySelectorAll('.cal-cell:not(.empty)').forEach(cell => {
+        cell.addEventListener('click', () => {
+            calSelectedDate = cell.getAttribute('data-date');
+            renderCalendar();
+            renderCalDetail();
+        });
+    });
+}
+
+function renderCalDetail() {
+    if (!calSelectedDate) {
+        calDetailTitle.textContent = '选择一天查看';
+        calDetailList.innerHTML = '<div class="empty-message">点日历上的某一天</div>';
+        return;
+    }
+    const parts = calSelectedDate.split('-');
+    calDetailTitle.textContent = `${parts[0]}年${Number(parts[1])}月${Number(parts[2])}日`;
+
+    const dishes = cookLogs.filter(log => {
+        const d = new Date(log.cookedAt);
+        return dateKey(d.getFullYear(), d.getMonth() + 1, d.getDate()) === calSelectedDate;
+    }).sort((a, b) => a.cookedAt - b.cookedAt);
+
+    if (dishes.length === 0) {
+        calDetailList.innerHTML = '<div class="empty-message">这天没有做菜记录</div>';
+        return;
+    }
+
+    let html = '';
+    dishes.forEach(d => {
+        const time = new Date(d.cookedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        html += `
+            <div class="dish-item">
+                <span class="dish-emoji">${getDishEmoji(d.recipeName)}</span>
+                <div class="dish-name">${escapeHtml(d.recipeName)}</div>
+                <div class="dish-time">${time}</div>
+                <button class="dish-del" data-id="${d.id}">🗑️</button>
+            </div>
+        `;
+    });
+    calDetailList.innerHTML = html;
+
+    calDetailList.querySelectorAll('.dish-del').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            try {
+                await db.collection('cook_logs').doc(id).delete();
+                await loadAllData();
+                renderCalendar();
+                renderCalDetail();
+                showToast('已删除', 1200);
+            } catch (err) {
+                console.error('删除失败：', err);
+                showToast('删除失败', 1500);
+            }
+        });
+    });
+}
+
+function renderQuickSelect() {
+    quickRecipeSelect.innerHTML = recipes.map(r =>
+        `<option value="${r.id}">${getDishEmoji(r.name)} ${r.name}</option>`
+    ).join('');
+}
+
+quickAddBtn.addEventListener('click', async () => {
+    const rid = quickRecipeSelect.value;
+    const r = recipes.find(x => x.id === rid);
+    if (!r) { showToast('请先添加菜谱', 1500); return; }
+    if (!currentUser) { showToast('请先登录', 1500); return; }
+    try {
+        await db.collection('cook_logs').add({
+            userId: currentUser.uid,
+            recipeId: r.id,
+            recipeName: r.name,
+            cookedAt: Date.now()
+        });
+        await loadAllData();
+        calSelectedDate = dateKey(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+        renderCalendar();
+        renderCalDetail();
+        showToast(`✅ 已记录：${r.name}`, 1500);
+    } catch (err) {
+        console.error('记录失败：', err);
+        showToast('记录失败，请重试', 2000);
+    }
+});
+
+// ============================================
+// 个人主页
+// ============================================
+profileBtn.addEventListener('click', async () => {
+    ownerView.classList.add('hidden');
+    guestView.classList.add('hidden');
+    calView.classList.add('hidden');
+    profileView.classList.remove('hidden');
+    fabBtn.classList.add('hidden');
+    renderProfile();
+    renderWeightList();
+});
+
+profileBackBtn.addEventListener('click', () => {
+    profileView.classList.add('hidden');
+    ownerView.classList.remove('hidden');
+    fabBtn.classList.remove('hidden');
+});
+
+avatarEditBtn.addEventListener('click', () => avatarInput.click());
+avatarInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        const compressed = await compressImage(ev.target.result, 200, 0.6);
+        profile.avatar = compressed;
+        try {
+            await db.collection('profiles').doc(currentUser.uid).set(profile, { merge: true });
+            renderProfile();
+            showToast('头像已更新', 1200);
+        } catch (err) {
+            console.error('保存头像失败：', err);
+            showToast('保存失败', 1500);
+        }
+    };
+    reader.readAsDataURL(file);
+    avatarInput.value = '';
+});
+
+profileGenderBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        profileGenderBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        profile.gender = btn.getAttribute('data-gender');
+    });
+});
+
+profileSaveBtn.addEventListener('click', async () => {
+    profile.height = Number(profileHeightInput.value) || 165;
+    profile.weight = Number(profileWeightInput.value) || 55;
+    profile.age = Number(profileAgeInput.value) || 25;
+    try {
+        await db.collection('profiles').doc(currentUser.uid).set(profile, { merge: true });
+        renderProfile();
+        showToast('✅ 资料已保存', 1200);
+    } catch (err) {
+        console.error('保存失败：', err);
+        showToast('保存失败', 1500);
+    }
+});
+
+addWeightBtn.addEventListener('click', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const w = Number(profileWeightInput.value) || profile.weight;
+    try {
+        const existing = await db.collection('weight_records')
+            .where('userId', '==', currentUser.uid)
+            .where('date', '==', today).get();
+        if (!existing.empty) {
+            await db.collection('weight_records').doc(existing.docs[0].id).update({ weight: w });
+        } else {
+            await db.collection('weight_records').add({
+                userId: currentUser.uid,
+                date: today,
+                weight: w,
+                createdAt: Date.now()
+            });
+        }
+        profile.weight = w;
+        await db.collection('profiles').doc(currentUser.uid).set({ weight: w }, { merge: true });
+        await loadAllData();
+        renderProfile();
+        renderWeightList();
+        showToast('✅ 已记录：' + w + 'kg', 1500);
+    } catch (err) {
+        console.error('记录失败：', err);
+        showToast('记录失败', 1500);
+    }
+});
+
+function renderProfile() {
+    if (!profile) return;
+    if (profile.avatar) {
+        avatarImg.innerHTML = `<img src="${profile.avatar}" alt="">`;
+    } else {
+        avatarImg.innerHTML = profile.gender === 'male' ? '👨' : '👩';
+    }
+    avatarName.textContent = profile.name || '我';
+    avatarId.textContent = 'ID：' + (currentUser ? currentUser.uid.slice(0, 8) : '');
+    statHeight.innerHTML = profile.height + '<small>cm</small>';
+    statWeight.innerHTML = profile.weight + '<small>kg</small>';
+    statAge.innerHTML = profile.age + '<small>岁</small>';
+    profileHeightInput.value = profile.height;
+    profileWeightInput.value = profile.weight;
+    profileAgeInput.value = profile.age;
+    profileGenderBtns.forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-gender') === profile.gender);
+    });
+}
+
+function renderWeightList() {
+    if (weightRecords.length === 0) {
+        weightList.innerHTML = '<div class="empty-message">还没有体重记录</div>';
+        return;
+    }
+    let html = '';
+    weightRecords.forEach((r, idx) => {
+        let diffHtml = '';
+        if (idx < weightRecords.length - 1) {
+            const prev = weightRecords[idx + 1];
+            const diff = r.weight - prev.weight;
+            if (diff > 0) diffHtml = `<span class="wr-diff up">↑ ${diff.toFixed(1)}kg</span>`;
+            else if (diff < 0) diffHtml = `<span class="wr-diff down">↓ ${Math.abs(diff).toFixed(1)}kg</span>`;
+            else diffHtml = `<span class="wr-diff">持平</span>`;
+        }
+        html += `
+            <div class="weight-record">
+                <span class="wr-date">${r.date}</span>
+                <span class="wr-value">${r.weight}kg</span>
+                ${diffHtml}
+            </div>
+        `;
+    });
+    weightList.innerHTML = html;
+}
 
 // ============================================
 // 导出 / 导入
