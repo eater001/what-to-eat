@@ -19,6 +19,8 @@ const db = firebase.firestore();
 // ============================================
 let currentUser = null;
 let recipes = [];
+let currentPage = 1;
+const PAGE_SIZE = 10;
 let fridgeItems = [];
 let currentImageBase64 = null;
 let editingId = null;
@@ -627,6 +629,7 @@ function parseFridgeText(text) {
     });
     return items;
 }
+
 // ============================================
 // Tab 切换
 // ============================================
@@ -704,7 +707,7 @@ function cancelEdit() {
 }
 
 // ============================================
-// 图片压缩（直接 base64 存 Firestore）
+// 图片压缩
 // ============================================
 async function uploadImage(base64) {
     if (!base64) return null;
@@ -755,6 +758,7 @@ async function saveOrUpdateRecipe() {
         }
 
         await loadAllData();
+        currentPage = 1;
         renderAll();
         resetFormToAddMode();
         closeFormSheet();
@@ -1104,6 +1108,7 @@ function renderCategoryBar() {
     categoryBar.querySelectorAll('.category-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             activeCategory = chip.getAttribute('data-category');
+            currentPage = 1;
             renderAll();
         });
     });
@@ -1135,6 +1140,7 @@ function getVisibleRecipes() {
 
 function renderRecipeList() {
     const visible = getVisibleRecipes();
+
     if (visible.length === 0) {
         recipeListEl.innerHTML = `
             <div class="empty-message">
@@ -1146,8 +1152,15 @@ function renderRecipeList() {
         return;
     }
 
+    const totalPages = Math.ceil(visible.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = visible.slice(start, start + PAGE_SIZE);
+
     let html = '';
-    visible.forEach(recipe => {
+    pageItems.forEach(recipe => {
         const imageHtml = recipe.image
             ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">`
             : `<span>🍽️</span>`;
@@ -1178,7 +1191,31 @@ function renderRecipeList() {
             </div>
         `;
     });
+
+    if (totalPages > 1) {
+        html += `
+            <div class="pagination">
+                <button class="page-btn" id="prevPageBtn" ${currentPage <= 1 ? 'disabled' : ''}>← 上一页</button>
+                <span class="page-info">${currentPage} / ${totalPages}</span>
+                <button class="page-btn" id="nextPageBtn" ${currentPage >= totalPages ? 'disabled' : ''}>下一页 →</button>
+            </div>
+        `;
+    }
+
     recipeListEl.innerHTML = html;
+
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) { currentPage--; renderRecipeList(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) { currentPage++; renderRecipeList(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        });
+    }
 
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1435,6 +1472,7 @@ function importBackup(file) {
                             }
                         }
                         await loadAllData();
+                        currentPage = 1;
                         renderAll();
                         renderFridge();
                         showToast(`✅ 已导入 ${importedRecipes.length} 道菜谱`, 2000);
@@ -1537,7 +1575,7 @@ importFileInput.addEventListener('change', (e) => {
 });
 
 // ============================================
-// 初始化（关键：先检查分享参数，不要求登录）
+// 初始化
 // ============================================
 function checkShareMode() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1552,13 +1590,11 @@ function checkShareMode() {
 
 const shareData = checkShareMode();
 if (shareData) {
-    // 有分享参数：直接进访客模式，不要求登录
     authScreen.classList.add('hidden');
     appContainer.classList.remove('hidden');
     isGuestMode = true;
     enterGuestMode(shareData);
 } else {
-    // 没有分享参数：正常走登录检查
     auth.onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
