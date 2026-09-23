@@ -646,7 +646,8 @@ function parseFridgeText(text) {
         seen.add(cleaned); items.push(cleaned);
     });
     return items;
-}.fridge-item.expired {
+}
+.fridge-item.expired {
     background: #fff5f5;
     border-color: #f5c6c2;
 }
