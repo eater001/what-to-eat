@@ -35,7 +35,7 @@
         .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding: 0 4px; gap: 10px; }
         .app-header h1 { font-size: 26px; font-weight: 700; color: #3e2c1b; display: flex; align-items: center; gap: 8px; }
         .app-header h1 .emoji { font-size: 28px; }
-        .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
         .header-icon-btn { background: #eef3f9; color: #3d6a9e; border: 1px solid #cfe0f0; border-radius: 40px; padding: 10px 14px; font-size: 16px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .header-fridge-btn { background: #e8f5e5; color: #3e7d34; border: 1px solid #c6e3be; border-radius: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .header-add-btn { background: #3f2e1e; color: #f5ede4; border: none; border-radius: 40px; padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
@@ -62,6 +62,8 @@
         .share-btn { background: #fff3e0; color: #b06a1e; border: 1px solid #f0d9b5; border-radius: 40px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
         .backup-btn { background: #eef3f9; color: #3d6a9e; border: 1px solid #cfe0f0; border-radius: 40px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
         .dice-btn { background: #f0e9e0; color: #7d633d; border: 1px solid #e2d4c4; border-radius: 40px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .light-btn { background: #e8f5e5; color: #3e7d34; border: 1px solid #c6e3be; border-radius: 40px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .sport-btn { background: #eef3f9; color: #3d6a9e; border: 1px solid #cfe0f0; border-radius: 40px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
 
         .empty-message { background: #fdfaf7; border-radius: 24px; padding: 50px 20px; text-align: center; color: #b7a18c; font-size: 16px; border: 1px dashed #dccfc2; display: flex; flex-direction: column; align-items: center; gap: 12px; }
         .empty-message span { font-size: 52px; }
@@ -302,6 +304,36 @@
         .weight-record .wr-diff.down { color: #3e7d34; }
         .weight-record .wr-diff.up { color: #c0392b; }
 
+        /* ===== 轻食页面 ===== */
+        .light-refresh-btn { background: #3e7d34; color: #fff; border: none; border-radius: 40px; padding: 14px 32px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px -6px rgba(62, 125, 52, 0.5); display: block; margin: 0 auto 24px; }
+        .light-refresh-btn:active { background: #2e6b2a; transform: scale(0.98); }
+        .light-card { background: #ffffff; border-radius: 20px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 6px 16px -8px rgba(70, 50, 30, 0.12); border: 1px solid #f1e5da; }
+        .light-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .light-icon { font-size: 30px; flex-shrink: 0; }
+        .light-name { flex: 1; font-size: 16px; font-weight: 600; color: #2b1f14; }
+        .light-cal { font-size: 14px; font-weight: 700; color: #b06a1e; }
+        .light-meta { font-size: 12px; color: #9c8870; }
+        .light-total { text-align: center; font-size: 13px; color: #7d633d; background: #faf5f0; padding: 16px; border-radius: 16px; margin-top: 16px; line-height: 1.7; }
+        .light-total strong { color: #b06a1e; font-size: 20px; }
+        .target-tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-top: 6px; }
+        .target-tag.good { background: #e8f5e5; color: #2e6b2a; }
+        .target-tag.over { background: #fdeceb; color: #c0392b; }
+        .target-tag.under { background: #fff6e5; color: #b06a1e; }
+
+        /* ===== 运动打卡 ===== */
+        .sport-form-card { background: #ffffff; border-radius: 24px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 20px -8px rgba(70, 50, 30, 0.12); border: 1px solid #f1e5da; }
+        .sport-form-title { font-size: 17px; font-weight: 600; color: #4a3723; margin-bottom: 16px; }
+        .sport-stats-card { background: linear-gradient(135deg, #e8f5e5 0%, #d8ebd3 100%); border-radius: 20px; padding: 18px 20px; margin-bottom: 20px; border: 1px solid #c6e3be; display: flex; justify-content: space-around; text-align: center; }
+        .sport-stat-value { font-size: 24px; font-weight: 700; color: #2e6b2a; }
+        .sport-stat-label { font-size: 12px; color: #5c8a55; margin-top: 4px; }
+        .sport-record { background: #ffffff; border-radius: 18px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 4px 12px -6px rgba(70, 50, 30, 0.1); border: 1px solid #f1e5da; display: flex; align-items: center; gap: 12px; }
+        .sport-record-icon { font-size: 28px; flex-shrink: 0; }
+        .sport-record-info { flex: 1; min-width: 0; }
+        .sport-record-name { font-size: 15px; font-weight: 600; color: #2b1f14; margin-bottom: 3px; }
+        .sport-record-meta { font-size: 12px; color: #9c8870; }
+        .sport-record-cal { font-size: 14px; font-weight: 700; color: #b06a1e; flex-shrink: 0; }
+        .sport-record-del { background: none; border: none; font-size: 16px; cursor: pointer; color: #c2ab97; padding: 4px; flex-shrink: 0; }
+
         .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #3e2e1f; color: #f5ede4; padding: 12px 24px; border-radius: 40px; font-size: 15px; font-weight: 500; z-index: 2000; opacity: 0; transition: opacity 0.25s; pointer-events: none; max-width: 90vw; text-align: center; }
         .toast.show { opacity: 1; }
         #fridgeOverlay { z-index: 1050; }
@@ -333,8 +365,8 @@
                 <div class="header-actions">
                     <button class="header-icon-btn" id="calBtn">📅</button>
                     <button class="header-icon-btn" id="profileBtn">👤</button>
-                    <button class="header-fridge-btn" id="fridgeBtn">🧊 冰箱</button>
-                    <button class="header-add-btn" id="headerAddBtn">＋ 添加</button>
+                    <button class="header-fridge-btn" id="fridgeBtn">🧊</button>
+                    <button class="header-add-btn" id="headerAddBtn">＋</button>
                 </div>
             </div>
 
@@ -355,10 +387,12 @@
                 <div class="toolbar-actions">
                     <button class="select-all-btn hidden" id="selectAllBtn">全选</button>
                     <button class="batch-del-btn hidden" id="batchDelBtn" disabled>🗑️ 删除 (<span id="selectedCount">0</span>)</button>
-                    <button class="backup-btn" id="exportBtn">📦 导出</button>
-                    <button class="backup-btn" id="importBtn">📥 导入</button>
-                    <button class="dice-btn" id="diceBtn">🎲 摇一摇</button>
-                    <button class="share-btn" id="shareBtn">📤 分享点菜</button>
+                    <button class="light-btn" id="lightBtn">🥗 轻食</button>
+                    <button class="sport-btn" id="sportBtn">🏃 运动</button>
+                    <button class="backup-btn" id="exportBtn">📦</button>
+                    <button class="backup-btn" id="importBtn">📥</button>
+                    <button class="dice-btn" id="diceBtn">🎲</button>
+                    <button class="share-btn" id="shareBtn">📤</button>
                     <input type="file" id="importFileInput" accept=".json" style="display:none;">
                 </div>
             </div>
@@ -377,7 +411,8 @@
             <div class="quick-card">
                 <div class="quick-title">➕ 今天做了哪道菜？</div>
                 <div class="quick-row">
-                    <select class="quick-select" id="quickRecipeSelect"></select>
+                    <input type="text" class="quick-select" id="quickRecipeInput" placeholder="选菜谱或直接输入菜名..." list="recipeSuggestions" autocomplete="off">
+                    <datalist id="recipeSuggestions"></datalist>
                     <button class="quick-btn" id="quickAddBtn">✅ 做了</button>
                 </div>
             </div>
@@ -459,11 +494,80 @@
             </div>
             <button class="save-btn" id="profileSaveBtn">保存资料</button>
             <button class="save-btn" id="addWeightBtn" style="margin-top:14px;background:#3e7d34;">➕ 记录今日体重</button>
-             <button class="save-btn" id="logoutBtn" style="margin-top:14px;background:#c0392b;">🚪 退出登录</button>
+            <button class="save-btn" id="logoutBtn" style="margin-top:14px;background:#c0392b;">🚪 退出登录</button>
+
             <div class="recipes-header" style="margin-top:24px;">
                 <h2>📊 体重变化</h2>
             </div>
             <div id="weightList"></div>
+        </div>
+
+        <!-- 轻食搭配页 -->
+        <div id="lightView" class="hidden">
+            <div class="app-header">
+                <h1><span class="emoji">🥗</span> 轻食搭配</h1>
+                <button class="header-user-btn" id="lightBackBtn">← 返回</button>
+            </div>
+            <div class="subhead">根据菜谱分类，推荐清爽搭配</div>
+
+            <button class="light-refresh-btn" id="lightRefreshBtn">🎲 换一组搭配</button>
+            <div id="lightList"></div>
+        </div>
+
+        <!-- 运动打卡页 -->
+        <div id="sportView" class="hidden">
+            <div class="app-header">
+                <h1><span class="emoji">🏃</span> 运动打卡</h1>
+                <button class="header-user-btn" id="sportBackBtn">← 返回</button>
+            </div>
+            <div class="subhead">记录每次运动，看看今天消耗了多少</div>
+
+            <div class="sport-form-card">
+                <div class="sport-form-title">➕ 记录一次运动</div>
+                <div class="field">
+                    <label>运动项目</label>
+                    <select id="sportSelect" style="width:100%;padding:12px 14px;font-size:15px;background:#fcf9f6;border:1.5px solid #eadbcd;border-radius:14px;outline:none;">
+                        <option value="跑步">🏃 跑步</option>
+                        <option value="快走">🚶 快走</option>
+                        <option value="骑行">🚴 骑行</option>
+                        <option value="游泳">🏊 游泳</option>
+                        <option value="跳绳">🪢 跳绳</option>
+                        <option value="瑜伽">🧘 瑜伽</option>
+                        <option value="健身">💪 健身</option>
+                        <option value="球类">⚽ 球类</option>
+                        <option value="其他">🤸 其他</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>时长（分钟）</label>
+                    <input type="number" id="sportDurationInput" value="30" min="1" max="600">
+                </div>
+                <div class="field">
+                    <label>体重（kg，用于算消耗）</label>
+                    <input type="number" id="sportWeightInput" value="55" min="30" max="200">
+                </div>
+                <button class="save-btn" id="sportAddBtn">✅ 打卡</button>
+            </div>
+
+            <div class="sport-stats-card">
+                <div>
+                    <div class="sport-stat-value" id="sportTodayCount">0</div>
+                    <div class="sport-stat-label">今日次数</div>
+                </div>
+                <div>
+                    <div class="sport-stat-value" id="sportTodayMin">0</div>
+                    <div class="sport-stat-label">今日分钟</div>
+                </div>
+                <div>
+                    <div class="sport-stat-value" id="sportTodayCal">0</div>
+                    <div class="sport-stat-label">今日消耗</div>
+                </div>
+            </div>
+
+            <div class="recipes-header">
+                <h2>📋 我的运动记录</h2>
+            </div>
+            <div id="sportList"></div>
         </div>
 
         <!-- 舍友点菜 -->
