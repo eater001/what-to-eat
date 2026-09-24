@@ -46,6 +46,9 @@ let calSelectedDate = null;
 let profile = null;
 let weightRecords = [];
 
+// 运动打卡
+let sportRecords = [];
+
 // DOM 缓存
 const authScreen = document.getElementById('authScreen');
 const appContainer = document.getElementById('appContainer');
@@ -153,7 +156,8 @@ const calMonthLabel = document.getElementById('calMonthLabel');
 const calGrid = document.getElementById('calGrid');
 const calDetailTitle = document.getElementById('calDetailTitle');
 const calDetailList = document.getElementById('calDetailList');
-const quickRecipeSelect = document.getElementById('quickRecipeSelect');
+const quickRecipeInput = document.getElementById('quickRecipeInput');
+const recipeSuggestions = document.getElementById('recipeSuggestions');
 const quickAddBtn = document.getElementById('quickAddBtn');
 
 // 个人主页 DOM
@@ -175,6 +179,26 @@ const profileAgeInput = document.getElementById('profileAgeInput');
 const profileSaveBtn = document.getElementById('profileSaveBtn');
 const addWeightBtn = document.getElementById('addWeightBtn');
 const weightList = document.getElementById('weightList');
+
+// 轻食页面 DOM
+const lightBtn = document.getElementById('lightBtn');
+const lightView = document.getElementById('lightView');
+const lightBackBtn = document.getElementById('lightBackBtn');
+const lightRefreshBtn = document.getElementById('lightRefreshBtn');
+const lightList = document.getElementById('lightList');
+
+// 运动页面 DOM
+const sportBtn = document.getElementById('sportBtn');
+const sportView = document.getElementById('sportView');
+const sportBackBtn = document.getElementById('sportBackBtn');
+const sportSelect = document.getElementById('sportSelect');
+const sportDurationInput = document.getElementById('sportDurationInput');
+const sportWeightInput = document.getElementById('sportWeightInput');
+const sportAddBtn = document.getElementById('sportAddBtn');
+const sportTodayCount = document.getElementById('sportTodayCount');
+const sportTodayMin = document.getElementById('sportTodayMin');
+const sportTodayCal = document.getElementById('sportTodayCal');
+const sportList = document.getElementById('sportList');
 
 // ============================================
 // 工具函数
@@ -255,6 +279,46 @@ function getDishEmoji(name) {
     if (/南瓜/.test(n)) return '🎃';
     if (/山药|藕/.test(n)) return '🥔';
     return '🍽️';
+}
+
+// 热量估算（菜名）
+function estimateCalories(recipe) {
+    const name = (recipe.name || '').toLowerCase();
+    if (/(炸|酥|油煎|油焖|干锅)/.test(name)) return 450;
+    if (/(红烧|糖醋|咕咾|回锅|扣肉|红烧肉|肘子|猪蹄)/.test(name)) return 380;
+    if (/(炖|焖|卤|酱|烧)/.test(name)) return 300;
+    if (/(凉拌|沙拉|拍黄瓜|凉菜)/.test(name)) return 120;
+    if (/(汤|羹|煲)/.test(name)) return 120;
+    if (/(炒饭|炒面|拌面|盖饭|面条|拉面|米线)/.test(name)) return 320;
+    if (/(蒸|煮|白灼|清炒|蒜蓉)/.test(name)) return 180;
+    if (/(豆腐|青菜|蔬菜|西兰花|菠菜|生菜)/.test(name)) return 130;
+    if (/(鸡胸|鸡腿|鸡翅|牛肉|鱼|虾)/.test(name)) return 220;
+    return 200;
+}
+
+// 匹配冰箱食材
+function matchFridge(recipe) {
+    const text = (recipe.name || '') + ' ' + (recipe.steps || '');
+    let matches = 0;
+    fridgeItems.forEach(item => {
+        if (text.includes(item.name)) matches++;
+    });
+    return matches;
+}
+
+// 运动 MET
+const SPORT_MET = {
+    '跑步': 9.8, '快走': 4.3, '骑行': 7.5, '游泳': 8.0,
+    '跳绳': 12.0, '瑜伽': 2.5, '健身': 6.0, '球类': 7.0, '其他': 4.0
+};
+const SPORT_ICON = {
+    '跑步': '🏃', '快走': '🚶', '骑行': '🚴', '游泳': '🏊',
+    '跳绳': '🪢', '瑜伽': '🧘', '健身': '💪', '球类': '⚽', '其他': '🤸'
+};
+
+function calcSportCalories(sport, minutes, weight) {
+    const met = SPORT_MET[sport] || 4.0;
+    return Math.round(met * weight * (minutes / 60));
 }
 
 // ============================================
@@ -401,6 +465,8 @@ async function showApp() {
     guestCartBar.classList.add('hidden');
     calView.classList.add('hidden');
     profileView.classList.add('hidden');
+    lightView.classList.add('hidden');
+    sportView.classList.add('hidden');
     await loadAllData();
     renderAll();
     renderFridge();
@@ -446,7 +512,6 @@ async function loadAllData() {
             };
         });
 
-        // 加载做菜记录
         const cookSnapshot = await db.collection('cook_logs')
             .where('userId', '==', currentUser.uid)
             .orderBy('cookedAt', 'desc').get();
@@ -460,7 +525,6 @@ async function loadAllData() {
             };
         });
 
-        // 加载个人资料
         const profileDoc = await db.collection('profiles').doc(currentUser.uid).get();
         if (profileDoc.exists) {
             profile = profileDoc.data();
@@ -468,13 +532,25 @@ async function loadAllData() {
             profile = { name: '我', gender: 'female', height: 165, weight: 55, age: 25, avatar: null };
         }
 
-        // 加载体重记录
         const weightSnapshot = await db.collection('weight_records')
             .where('userId', '==', currentUser.uid)
             .orderBy('date', 'desc').limit(30).get();
         weightRecords = weightSnapshot.docs.map(doc => {
             const d = doc.data();
             return { id: doc.id, date: d.date, weight: d.weight };
+        });
+
+        const sportSnapshot = await db.collection('sport_records')
+            .where('userId', '==', currentUser.uid)
+            .orderBy('createdAt', 'desc').limit(50).get();
+        sportRecords = sportSnapshot.docs.map(doc => {
+            const d = doc.data();
+            return {
+                id: doc.id, sport: d.sport || '',
+                minutes: d.minutes || 0,
+                calories: d.calories || 0,
+                createdAt: d.createdAt || 0
+            };
         });
     } catch (err) {
         console.error('加载数据失败：', err);
@@ -1613,6 +1689,8 @@ calBtn.addEventListener('click', () => {
     ownerView.classList.add('hidden');
     guestView.classList.add('hidden');
     profileView.classList.add('hidden');
+    lightView.classList.add('hidden');
+    sportView.classList.add('hidden');
     calView.classList.remove('hidden');
     fabBtn.classList.add('hidden');
     renderCalendar();
@@ -1745,28 +1823,31 @@ function renderCalDetail() {
 }
 
 function renderQuickSelect() {
-    quickRecipeSelect.innerHTML = recipes.map(r =>
-        `<option value="${r.id}">${getDishEmoji(r.name)} ${r.name}</option>`
+    recipeSuggestions.innerHTML = recipes.map(r =>
+        `<option value="${escapeHtml(r.name)}"></option>`
     ).join('');
 }
 
 quickAddBtn.addEventListener('click', async () => {
-    const rid = quickRecipeSelect.value;
-    const r = recipes.find(x => x.id === rid);
-    if (!r) { showToast('请先添加菜谱', 1500); return; }
+    const inputVal = quickRecipeInput.value.trim();
+    if (!inputVal) { showToast('请输入或选择菜名', 1500); quickRecipeInput.focus(); return; }
     if (!currentUser) { showToast('请先登录', 1500); return; }
+
+    const matched = recipes.find(r => r.name === inputVal);
+
     try {
         await db.collection('cook_logs').add({
             userId: currentUser.uid,
-            recipeId: r.id,
-            recipeName: r.name,
+            recipeId: matched ? matched.id : null,
+            recipeName: inputVal,
             cookedAt: Date.now()
         });
         await loadAllData();
         calSelectedDate = dateKey(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+        quickRecipeInput.value = '';
         renderCalendar();
         renderCalDetail();
-        showToast(`✅ 已记录：${r.name}`, 1500);
+        showToast(`✅ 已记录：${inputVal}`, 1500);
     } catch (err) {
         console.error('记录失败：', err);
         showToast('记录失败，请重试', 2000);
@@ -1780,6 +1861,8 @@ profileBtn.addEventListener('click', async () => {
     ownerView.classList.add('hidden');
     guestView.classList.add('hidden');
     calView.classList.add('hidden');
+    lightView.classList.add('hidden');
+    sportView.classList.add('hidden');
     profileView.classList.remove('hidden');
     fabBtn.classList.add('hidden');
     renderProfile();
@@ -1908,6 +1991,200 @@ function renderWeightList() {
         `;
     });
     weightList.innerHTML = html;
+}
+
+// ============================================
+// 轻食搭配
+// ============================================
+lightBtn.addEventListener('click', () => {
+    ownerView.classList.add('hidden');
+    guestView.classList.add('hidden');
+    calView.classList.add('hidden');
+    profileView.classList.add('hidden');
+    sportView.classList.add('hidden');
+    lightView.classList.remove('hidden');
+    fabBtn.classList.add('hidden');
+    renderLightPage();
+});
+
+lightBackBtn.addEventListener('click', () => {
+    lightView.classList.add('hidden');
+    ownerView.classList.remove('hidden');
+    fabBtn.classList.remove('hidden');
+});
+
+lightRefreshBtn.addEventListener('click', renderLightPage);
+
+function renderLightPage() {
+    const visible = recipes;
+
+    if (visible.length < 2) {
+        lightList.innerHTML = `
+            <div class="empty-message">
+                <span>🥗</span>
+                <div>菜谱太少，先去添加几道吧～</div>
+            </div>
+        `;
+        return;
+    }
+
+    const scored = visible.map(r => {
+        const fridgeMatch = matchFridge(r);
+        const calories = estimateCalories(r);
+        let score = fridgeMatch * 10;
+        if (calories < 200) score += 5;
+        else if (calories < 300) score += 2;
+        return { recipe: r, score, calories, fridgeMatch };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 10);
+
+    const picks = [];
+    const used = new Set();
+    while (picks.length < 3 && top.length > picks.length) {
+        const idx = Math.floor(Math.random() * top.length);
+        if (!used.has(idx)) {
+            used.add(idx);
+            picks.push(top[idx]);
+        }
+    }
+
+    const totalCal = picks.reduce((sum, p) => sum + p.calories, 0);
+
+    let html = '';
+    picks.forEach(p => {
+        const r = p.recipe;
+        const catInfo = getCategoryInfo(r.category || 'other');
+        const fridgeTip = p.fridgeMatch > 0
+            ? `<span style="color:#3e7d34;font-size:11px;"> ✅ 冰箱有 ${p.fridgeMatch} 样</span>`
+            : '';
+        html += `
+            <div class="light-card">
+                <div class="light-card-header">
+                    <span class="light-icon">${catInfo.icon}</span>
+                    <div class="light-name">${escapeHtml(r.name)}</div>
+                    <div class="light-cal">${p.calories} 千卡</div>
+                </div>
+                <div class="light-meta">${catInfo.name}${fridgeTip}</div>
+            </div>
+        `;
+    });
+
+    html += `
+        <div class="light-total">
+            💡 整餐约 <strong>${totalCal}</strong> 千卡<br>
+            <span style="font-size:12px;color:#a89b8c;">清淡均衡，适合轻食日</span>
+        </div>
+    `;
+
+    lightList.innerHTML = html;
+}
+
+// ============================================
+// 运动打卡
+// ============================================
+sportBtn.addEventListener('click', () => {
+    ownerView.classList.add('hidden');
+    guestView.classList.add('hidden');
+    calView.classList.add('hidden');
+    profileView.classList.add('hidden');
+    lightView.classList.add('hidden');
+    sportView.classList.remove('hidden');
+    fabBtn.classList.add('hidden');
+    renderSportPage();
+});
+
+sportBackBtn.addEventListener('click', () => {
+    sportView.classList.add('hidden');
+    ownerView.classList.remove('hidden');
+    fabBtn.classList.remove('hidden');
+});
+
+sportAddBtn.addEventListener('click', async () => {
+    const sport = sportSelect.value;
+    const minutes = Number(sportDurationInput.value) || 0;
+    const weight = Number(sportWeightInput.value) || 55;
+    if (minutes <= 0) { showToast('请输入运动时长', 1500); return; }
+    if (!currentUser) { showToast('请先登录', 1500); return; }
+
+    try {
+        await db.collection('sport_records').add({
+            userId: currentUser.uid,
+            sport: sport,
+            minutes: minutes,
+            weight: weight,
+            calories: calcSportCalories(sport, minutes, weight),
+            createdAt: Date.now()
+        });
+        await loadAllData();
+        renderSportPage();
+        showToast('✅ 已打卡：' + sport + ' ' + minutes + '分钟', 1500);
+    } catch (err) {
+        console.error('打卡失败：', err);
+        showToast('打卡失败，请重试', 2000);
+    }
+});
+
+function renderSportPage() {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const todayRecords = sportRecords.filter(r => {
+        const d = new Date(r.createdAt);
+        return d.toISOString().slice(0, 10) === todayStr;
+    });
+
+    const totalMin = todayRecords.reduce((s, r) => s + r.minutes, 0);
+    const totalCal = todayRecords.reduce((s, r) => s + r.calories, 0);
+
+    sportTodayCount.textContent = todayRecords.length;
+    sportTodayMin.textContent = totalMin;
+    sportTodayCal.textContent = totalCal;
+
+    if (sportRecords.length === 0) {
+        sportList.innerHTML = `
+            <div class="empty-message">
+                <span>🏃</span>
+                <div>还没有运动记录<br>去打卡一次吧～</div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    sportRecords.forEach(r => {
+        const timeStr = new Date(r.createdAt).toLocaleString('zh-CN', {
+            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
+        html += `
+            <div class="sport-record" data-id="${r.id}">
+                <span class="sport-record-icon">${SPORT_ICON[r.sport] || '🤸'}</span>
+                <div class="sport-record-info">
+                    <div class="sport-record-name">${r.sport}</div>
+                    <div class="sport-record-meta">${r.minutes}分钟 · ${timeStr}</div>
+                </div>
+                <div class="sport-record-cal">${r.calories} 千卡</div>
+                <button class="sport-record-del" data-id="${r.id}">🗑️</button>
+            </div>
+        `;
+    });
+    sportList.innerHTML = html;
+
+    sportList.querySelectorAll('.sport-record-del').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            try {
+                await db.collection('sport_records').doc(id).delete();
+                await loadAllData();
+                renderSportPage();
+                showToast('已删除', 1200);
+            } catch (err) {
+                console.error('删除失败：', err);
+                showToast('删除失败', 1500);
+            }
+        });
+    });
 }
 
 // ============================================
