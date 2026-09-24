@@ -49,6 +49,13 @@ let weightRecords = [];
 // 运动打卡
 let sportRecords = [];
 
+// 饭圈
+let moments = [];
+let momentImageBase64 = null;
+
+// 冰箱编辑
+let editingFridgeId = null;
+
 // DOM 缓存
 const authScreen = document.getElementById('authScreen');
 const appContainer = document.getElementById('appContainer');
@@ -200,6 +207,24 @@ const sportTodayMin = document.getElementById('sportTodayMin');
 const sportTodayCal = document.getElementById('sportTodayCal');
 const sportList = document.getElementById('sportList');
 
+// 饭圈 DOM
+const momentBtn = document.getElementById('momentBtn');
+const momentView = document.getElementById('momentView');
+const momentBackBtn = document.getElementById('momentBackBtn');
+const momentContent = document.getElementById('momentContent');
+const momentImageBtn = document.getElementById('momentImageBtn');
+const momentImageInput = document.getElementById('momentImageInput');
+const momentSubmit = document.getElementById('momentSubmit');
+const momentList = document.getElementById('momentList');
+
+// 冰箱编辑 DOM
+const editFridgeOverlay = document.getElementById('editFridgeOverlay');
+const editFridgeName = document.getElementById('editFridgeName');
+const editFridgeDate = document.getElementById('editFridgeDate');
+const editFridgeShelf = document.getElementById('editFridgeShelf');
+const editFridgeSave = document.getElementById('editFridgeSave');
+const editFridgeCancel = document.getElementById('editFridgeCancel');
+
 // ============================================
 // 工具函数
 // ============================================
@@ -241,7 +266,6 @@ function compressImage(base64, maxSize = 600, quality = 0.6) {
     });
 }
 
-// 菜名 → emoji
 function getDishEmoji(name) {
     const n = name || '';
     if (/番茄|西红柿/.test(n) && /蛋/.test(n)) return '🍅🥚';
@@ -281,7 +305,6 @@ function getDishEmoji(name) {
     return '🍽️';
 }
 
-// 热量估算（菜名）
 function estimateCalories(recipe) {
     const name = (recipe.name || '').toLowerCase();
     if (/(炸|酥|油煎|油焖|干锅)/.test(name)) return 450;
@@ -296,7 +319,6 @@ function estimateCalories(recipe) {
     return 200;
 }
 
-// 匹配冰箱食材
 function matchFridge(recipe) {
     const text = (recipe.name || '') + ' ' + (recipe.steps || '');
     let matches = 0;
@@ -306,7 +328,6 @@ function matchFridge(recipe) {
     return matches;
 }
 
-// 运动 MET
 const SPORT_MET = {
     '跑步': 9.8, '快走': 4.3, '骑行': 7.5, '游泳': 8.0,
     '跳绳': 12.0, '瑜伽': 2.5, '健身': 6.0, '球类': 7.0, '其他': 4.0
@@ -319,6 +340,38 @@ const SPORT_ICON = {
 function calcSportCalories(sport, minutes, weight) {
     const met = SPORT_MET[sport] || 4.0;
     return Math.round(met * weight * (minutes / 60));
+}
+
+// 时间格式化
+function timeAgo(timestamp) {
+    const diff = Date.now() - timestamp;
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return '刚刚';
+    if (min < 60) return min + '分钟前';
+    const hour = Math.floor(min / 60);
+    if (hour < 24) return hour + '小时前';
+    const day = Math.floor(hour / 24);
+    if (day < 30) return day + '天前';
+    return new Date(timestamp).toLocaleDateString('zh-CN');
+}
+
+// 获取用户显示名（从 profile 或 uid 前缀）
+function getUserDisplayName(userId) {
+    if (currentUser && userId === currentUser.uid) {
+        return profile && profile.name ? profile.name : '我';
+    }
+    return '用户' + userId.slice(0, 6);
+}
+
+function getUserAvatar(userId) {
+    if (currentUser && userId === currentUser.uid) {
+        if (profile && profile.avatar) {
+            return `<img src="${profile.avatar}" alt="">`;
+        }
+        if (profile && profile.gender === 'male') return '👨';
+        return '👩';
+    }
+    return '👤';
 }
 
 // ============================================
@@ -467,6 +520,7 @@ async function showApp() {
     profileView.classList.add('hidden');
     lightView.classList.add('hidden');
     sportView.classList.add('hidden');
+    momentView.classList.add('hidden');
     await loadAllData();
     renderAll();
     renderFridge();
@@ -549,6 +603,23 @@ async function loadAllData() {
                 id: doc.id, sport: d.sport || '',
                 minutes: d.minutes || 0,
                 calories: d.calories || 0,
+                createdAt: d.createdAt || 0
+            };
+        });
+
+        // 饭圈：所有人可见
+        const momentSnapshot = await db.collection('moments')
+            .orderBy('createdAt', 'desc').limit(50).get();
+        moments = momentSnapshot.docs.map(doc => {
+            const d = doc.data();
+            return {
+                id: doc.id,
+                userId: d.userId || '',
+                userName: d.userName || '',
+                content: d.content || '',
+                image: d.image || null,
+                likes: d.likes || [],
+                comments: d.comments || [],
                 createdAt: d.createdAt || 0
             };
         });
@@ -660,12 +731,12 @@ function performExtract() {
 }
 
 // ============================================
-// OCR
+// OCR（优化版：只用中文，清理乱码）
 // ============================================
 async function getOcrWorker(progressTarget) {
     if (ocrWorker) return ocrWorker;
     showToast('正在加载识别引擎（首次约需10秒）...', 3000);
-    ocrWorker = await Tesseract.createWorker('chi_sim+eng', 1, {
+    ocrWorker = await Tesseract.createWorker('chi_sim', 1, {
         logger: (m) => {
             const isRecipe = progressTarget === 'recipe';
             const progressEl = isRecipe ? ocrProgress : fridgeOcrProgress;
@@ -683,6 +754,14 @@ async function getOcrWorker(progressTarget) {
         }
     });
     return ocrWorker;
+}
+
+function cleanOcrText(text) {
+    return text
+        .replace(/[^\u4e00-\u9fa5a-zA-Z0-9，。、；：""''（）\n\r]/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
 }
 
 ocrDrop.addEventListener('click', () => ocrFileInput.click());
@@ -728,11 +807,12 @@ ocrRunBtn.addEventListener('click', async () => {
             ocrRunBtn.disabled = false;
             return;
         }
-        const result = extractFromText(text);
+        const cleaned = cleanOcrText(text);
+        const result = extractFromText(cleaned);
         if (result.name) dishNameInput.value = result.name;
         if (result.steps) stepsInput.value = result.steps;
         if (result.name || result.steps) { showToast('✨ 识别完成，请核对', 2500); ocrStatus.textContent = '识别完成'; }
-        else { stepsInput.value = text.trim(); showToast('已识别文字，请手动整理', 2500); ocrStatus.textContent = '识别完成'; }
+        else { stepsInput.value = cleaned; showToast('已识别文字，请手动整理', 2500); ocrStatus.textContent = '识别完成'; }
     } catch (err) {
         console.error('OCR 失败：', err);
         showToast('识别失败', 2500);
@@ -785,7 +865,8 @@ fridgeOcrRunBtn.addEventListener('click', async () => {
             fridgeOcrRunBtn.disabled = false;
             return;
         }
-        const items = parseFridgeText(text);
+        const cleaned = cleanOcrText(text);
+        const items = parseFridgeText(cleaned);
         if (items.length === 0) {
             showToast('未识别到有效食材', 2500);
             fridgeOcrStatus.textContent = '未识别到有效食材';
@@ -839,7 +920,8 @@ function parseFridgeText(text) {
         seen.add(cleaned); items.push(cleaned);
     });
     return items;
-}// ============================================
+}
+// ============================================
 // Tab 切换
 // ============================================
 document.querySelectorAll('.smart-tab').forEach(tab => {
@@ -1499,7 +1581,7 @@ function renderAll() {
 }
 
 // ============================================
-// 冰箱渲染
+// 冰箱渲染（含编辑、防误删）
 // ============================================
 function guessEmoji(name) {
     const n = name;
@@ -1569,28 +1651,89 @@ function renderFridge() {
                     <span class="fridge-name">${escapeHtml(item.name)}</span>
                     ${statusHtml}
                 </div>
+                <button class="fridge-edit" data-id="${item.id}" title="编辑">✏️</button>
                 <button class="fridge-del" data-id="${item.id}" title="删除">🗑️</button>
             </div>
         `;
     });
     fridgeList.innerHTML = html;
 
+    // 删除（带确认）
     fridgeList.querySelectorAll('.fridge-del').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const id = btn.getAttribute('data-id');
-            try {
-                await db.collection('fridge_items').doc(id).delete();
-                await loadAllData();
-                renderFridge();
-                showToast('已移除', 1200);
-            } catch (err) {
-                console.error('删除失败：', err);
-                showToast('删除失败', 1500);
-            }
+            const item = fridgeItems.find(f => f.id === id);
+            if (!item) return;
+            showConfirm({
+                icon: '🗑️', title: '删除食材',
+                message: `确定要删除「${item.name}」吗？`,
+                okText: '删除', okColor: '#c0392b',
+                onOk: async () => {
+                    try {
+                        await db.collection('fridge_items').doc(id).delete();
+                        await loadAllData();
+                        renderFridge();
+                        showToast('已移除', 1200);
+                    } catch (err) {
+                        console.error('删除失败：', err);
+                        showToast('删除失败', 1500);
+                    }
+                }
+            });
+        });
+    });
+
+    // 编辑
+    fridgeList.querySelectorAll('.fridge-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const item = fridgeItems.find(f => f.id === id);
+            if (!item) return;
+            editingFridgeId = id;
+            editFridgeName.value = item.name || '';
+            editFridgeDate.value = item.purchaseDate || '';
+            editFridgeShelf.value = item.shelfLife || '';
+            editFridgeOverlay.classList.add('show');
         });
     });
 }
+
+// 冰箱编辑：保存
+editFridgeSave.addEventListener('click', async () => {
+    const name = editFridgeName.value.trim();
+    if (!name) { showToast('请输入食材名称', 1200); editFridgeName.focus(); return; }
+    if (!editingFridgeId) return;
+
+    try {
+        await db.collection('fridge_items').doc(editingFridgeId).update({
+            name: name,
+            purchaseDate: editFridgeDate.value || null,
+            shelfLife: editFridgeShelf.value ? Number(editFridgeShelf.value) : null
+        });
+        await loadAllData();
+        renderFridge();
+        editFridgeOverlay.classList.remove('show');
+        editingFridgeId = null;
+        showToast('✅ 已更新', 1200);
+    } catch (err) {
+        console.error('更新失败：', err);
+        showToast('更新失败，请重试', 2000);
+    }
+});
+
+editFridgeCancel.addEventListener('click', () => {
+    editFridgeOverlay.classList.remove('show');
+    editingFridgeId = null;
+});
+
+editFridgeOverlay.addEventListener('click', (e) => {
+    if (e.target === editFridgeOverlay) {
+        editFridgeOverlay.classList.remove('show');
+        editingFridgeId = null;
+    }
+});
 
 fridgeAddBtn.addEventListener('click', async () => {
     const val = fridgeInput.value;
@@ -1691,6 +1834,7 @@ calBtn.addEventListener('click', () => {
     profileView.classList.add('hidden');
     lightView.classList.add('hidden');
     sportView.classList.add('hidden');
+    momentView.classList.add('hidden');
     calView.classList.remove('hidden');
     fabBtn.classList.add('hidden');
     renderCalendar();
@@ -1863,6 +2007,7 @@ profileBtn.addEventListener('click', async () => {
     calView.classList.add('hidden');
     lightView.classList.add('hidden');
     sportView.classList.add('hidden');
+    momentView.classList.add('hidden');
     profileView.classList.remove('hidden');
     fabBtn.classList.add('hidden');
     renderProfile();
@@ -2002,6 +2147,7 @@ lightBtn.addEventListener('click', () => {
     calView.classList.add('hidden');
     profileView.classList.add('hidden');
     sportView.classList.add('hidden');
+    momentView.classList.add('hidden');
     lightView.classList.remove('hidden');
     fabBtn.classList.add('hidden');
     renderLightPage();
@@ -2090,6 +2236,7 @@ sportBtn.addEventListener('click', () => {
     calView.classList.add('hidden');
     profileView.classList.add('hidden');
     lightView.classList.add('hidden');
+    momentView.classList.add('hidden');
     sportView.classList.remove('hidden');
     fabBtn.classList.add('hidden');
     renderSportPage();
@@ -2171,17 +2318,211 @@ function renderSportPage() {
     sportList.innerHTML = html;
 
     sportList.querySelectorAll('.sport-record-del').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const id = btn.getAttribute('data-id');
+            showConfirm({
+                icon: '🗑️', title: '删除记录', message: '确定要删除这条运动记录吗？',
+                okText: '删除', okColor: '#c0392b',
+                onOk: async () => {
+                    try {
+                        await db.collection('sport_records').doc(id).delete();
+                        await loadAllData();
+                        renderSportPage();
+                        showToast('已删除', 1200);
+                    } catch (err) {
+                        console.error('删除失败：', err);
+                        showToast('删除失败', 1500);
+                    }
+                }
+            });
+        });
+    });
+}
+
+// ============================================
+// 饭圈
+// ============================================
+momentBtn.addEventListener('click', () => {
+    ownerView.classList.add('hidden');
+    guestView.classList.add('hidden');
+    calView.classList.add('hidden');
+    profileView.classList.add('hidden');
+    lightView.classList.add('hidden');
+    sportView.classList.add('hidden');
+    momentView.classList.remove('hidden');
+    fabBtn.classList.add('hidden');
+    renderMoments();
+});
+
+momentBackBtn.addEventListener('click', () => {
+    momentView.classList.add('hidden');
+    ownerView.classList.remove('hidden');
+    fabBtn.classList.remove('hidden');
+});
+
+momentImageBtn.addEventListener('click', () => momentImageInput.click());
+momentImageInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        momentImageBase64 = await compressImage(ev.target.result, 600, 0.6);
+        momentImageBtn.textContent = '✅ 已选图';
+    };
+    reader.readAsDataURL(file);
+    momentImageInput.value = '';
+});
+
+momentSubmit.addEventListener('click', async () => {
+    const content = momentContent.value.trim();
+    if (!content && !momentImageBase64) {
+        showToast('写点什么或选张图吧', 1500);
+        return;
+    }
+    if (!currentUser) { showToast('请先登录', 1500); return; }
+
+    try {
+        await db.collection('moments').add({
+            userId: currentUser.uid,
+            userName: profile && profile.name ? profile.name : '用户' + currentUser.uid.slice(0, 6),
+            content: content,
+            image: momentImageBase64 || null,
+            likes: [],
+            comments: [],
+            createdAt: Date.now()
+        });
+        await loadAllData();
+        momentContent.value = '';
+        momentImageBase64 = null;
+        momentImageBtn.textContent = '📷 图片';
+        renderMoments();
+        showToast('✅ 已发布', 1500);
+    } catch (err) {
+        console.error('发布失败：', err);
+        showToast('发布失败，请重试', 2000);
+    }
+});
+
+function renderMoments() {
+    if (moments.length === 0) {
+        momentList.innerHTML = `
+            <div class="empty-message">
+                <span>🍜</span>
+                <div>还没有人分享<br>发第一条吧～</div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    moments.forEach(m => {
+        const liked = m.likes.includes(currentUser.uid);
+        const likeText = liked ? `❤️ ${m.likes.length}` : `🤍 ${m.likes.length}`;
+
+        let imageHtml = '';
+        if (m.image) {
+            imageHtml = `<img class="moment-image" src="${m.image}" alt="">`;
+        }
+
+        let commentsHtml = '';
+        if (m.comments.length > 0) {
+            commentsHtml = '<div class="moment-comments">';
+            m.comments.forEach(c => {
+                commentsHtml += `<div class="moment-comment"><strong>${escapeHtml(c.userName)}：</strong>${escapeHtml(c.content)}</div>`;
+            });
+            commentsHtml += '</div>';
+        }
+
+        const avatarHtml = getUserAvatar(m.userId);
+        const displayName = m.userName || getUserDisplayName(m.userId);
+
+        html += `
+            <div class="moment-card" data-id="${m.id}">
+                <div class="moment-header">
+                    <div class="moment-avatar">${avatarHtml}</div>
+                    <div class="moment-user">${escapeHtml(displayName)}${m.userId === currentUser.uid ? ' (我)' : ''}</div>
+                    <div class="moment-time">${timeAgo(m.createdAt)}</div>
+                </div>
+                <div class="moment-content">${escapeHtml(m.content)}</div>
+                ${imageHtml}
+                <div class="moment-actions">
+                    <button class="moment-action ${liked ? 'liked' : ''}" data-action="like" data-id="${m.id}">
+                        ${likeText}
+                    </button>
+                    <button class="moment-action" data-action="comment" data-id="${m.id}">
+                        💬 ${m.comments.length}
+                    </button>
+                </div>
+                ${commentsHtml}
+                <div class="moment-comment-input">
+                    <input type="text" placeholder="说点什么..." data-id="${m.id}" class="moment-comment-input-field">
+                    <button data-action="send-comment" data-id="${m.id}">发送</button>
+                </div>
+            </div>
+        `;
+    });
+    momentList.innerHTML = html;
+
+    // 点赞
+    momentList.querySelectorAll('[data-action="like"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const m = moments.find(x => x.id === id);
+            if (!m) return;
+            let newLikes = m.likes.slice();
+            if (newLikes.includes(currentUser.uid)) {
+                newLikes = newLikes.filter(u => u !== currentUser.uid);
+            } else {
+                newLikes.push(currentUser.uid);
+            }
             try {
-                await db.collection('sport_records').doc(id).delete();
-                await loadAllData();
-                renderSportPage();
-                showToast('已删除', 1200);
+                await db.collection('moments').doc(id).update({ likes: newLikes });
+                m.likes = newLikes;
+                renderMoments();
             } catch (err) {
-                console.error('删除失败：', err);
-                showToast('删除失败', 1500);
+                console.error('点赞失败：', err);
+                showToast('操作失败', 1500);
+            }
+        });
+    });
+
+    // 发送评论
+    momentList.querySelectorAll('[data-action="send-comment"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const input = momentList.querySelector(`.moment-comment-input-field[data-id="${id}"]`);
+            const content = input.value.trim();
+            if (!content) return;
+            const m = moments.find(x => x.id === id);
+            if (!m) return;
+
+            const newComments = m.comments.slice();
+            newComments.push({
+                userId: currentUser.uid,
+                userName: profile && profile.name ? profile.name : '用户' + currentUser.uid.slice(0, 6),
+                content: content,
+                time: Date.now()
+            });
+            try {
+                await db.collection('moments').doc(id).update({ comments: newComments });
+                m.comments = newComments;
+                renderMoments();
+            } catch (err) {
+                console.error('评论失败：', err);
+                showToast('评论失败', 1500);
+            }
+        });
+    });
+
+    // 回车发评论
+    momentList.querySelectorAll('.moment-comment-input-field').forEach(input => {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const id = input.getAttribute('data-id');
+                const btn = momentList.querySelector(`[data-action="send-comment"][data-id="${id}"]`);
+                if (btn) btn.click();
             }
         });
     });
